@@ -4,11 +4,11 @@ import sys
 import numpy as np
 import load_trace
 #import a2c as network
-import ppo2 as network
+import ppo2_cuda as network
 import fixed_env as env
 
 
-S_INFO = 6  # bit_rate, buffer_size, next_chunk_size, bandwidth_measurement(throughput and time), chunk_til_video_end
+S_INFO = 7  # bit_rate, buffer_size, next_chunk_size, bandwidth_measurement(throughput and time), chunk_til_video_end
 S_LEN = 8  # take how many frames in the past
 A_DIM = 6
 ACTOR_LR_RATE = 0.0001
@@ -64,6 +64,10 @@ def main():
     entropy_record = []
     entropy_ = 0.5
     video_count = 0
+
+    buffer_weight = 1
+    max_buffer_size = 30
+    buffer_occupancy = 0.
     
     while True:  # serve video forever
         # the action is from the last decision
@@ -72,7 +76,7 @@ def main():
         video_chunk_size, next_video_chunk_sizes, \
         end_of_video, video_chunk_remain = \
             net_env.get_video_chunk(bit_rate)
-
+        buffer_occupancy = buffer_size / max_buffer_size
         time_stamp += delay  # in ms
         time_stamp += sleep_time  # in ms
 
@@ -111,9 +115,14 @@ def main():
         state[1, -1] = buffer_size / BUFFER_NORM_FACTOR  # 10 sec
         state[2, -1] = float(video_chunk_size) / float(delay) / M_IN_K  # kilo byte / ms
         state[3, -1] = float(delay) / M_IN_K / BUFFER_NORM_FACTOR  # 10 sec
-        state[4, :A_DIM] = np.array(next_video_chunk_sizes) / M_IN_K / M_IN_K  # mega byte
-        state[5, -1] = np.minimum(video_chunk_remain, CHUNK_TIL_VIDEO_END_CAP) / float(CHUNK_TIL_VIDEO_END_CAP)
-
+        # state[4, :A_DIM] = np.array(next_video_chunk_sizes) / M_IN_K / M_IN_K  # mega byte
+        # state[5, -1] = np.minimum(video_chunk_remain, CHUNK_TIL_VIDEO_END_CAP) / float(CHUNK_TIL_VIDEO_END_CAP)
+        avg_video_chunk_sizes = np.zeros(A_DIM)
+        for i in range(A_DIM):
+            avg_video_chunk_sizes[i] = np.mean(net_env.video_size[i])
+        state[4, :A_DIM] = avg_video_chunk_sizes / M_IN_K / M_IN_K  # mega byte
+        state[5, -1] = max_buffer_size
+        state[6, -1] = buffer_weight
         action_prob = actor.predict(np.reshape(state, (1, S_INFO, S_LEN)))
         noise = np.random.gumbel(size=len(action_prob))
         bit_rate = np.argmax(np.log(action_prob) + noise)

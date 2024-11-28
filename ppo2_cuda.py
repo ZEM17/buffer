@@ -20,24 +20,26 @@ class Actor(nn.Module):
 
         self.fc1_actor = nn.Linear(1, FEATURE_NUM)
         self.fc2_actor = nn.Linear(1, FEATURE_NUM)
-        self.conv1_actor = nn.Linear(self.s_dim[1], FEATURE_NUM)
-        self.conv2_actor = nn.Linear(self.s_dim[1], FEATURE_NUM)
-        self.conv3_actor = nn.Linear(self.a_dim, FEATURE_NUM)
-        self.fc3_actor = nn.Linear(1, FEATURE_NUM)
-        self.fc4_actor = nn.Linear(FEATURE_NUM * self.s_dim[0], FEATURE_NUM)
+        self.conv3_actor = nn.Conv1d(kernel_size=1, in_channels=1, out_channels=FEATURE_NUM)
+        self.conv4_actor = nn.Conv1d(kernel_size=1, in_channels=1, out_channels=FEATURE_NUM)
+        self.conv5_actor = nn.Conv1d(kernel_size=1, in_channels=1, out_channels=FEATURE_NUM)
+        self.fc6_actor = nn.Linear(1, FEATURE_NUM)
+        self.fc7_actor = nn.Linear(1, FEATURE_NUM)
+        self.merge_actor = nn.Linear(3328, FEATURE_NUM)
         self.pi_head = nn.Linear(FEATURE_NUM, action_dim)
 
     def forward(self, inputs):
-        split_0 = F.relu(self.fc1_actor(inputs[:, 0:1, -1]))
-        split_1 = F.relu(self.fc2_actor(inputs[:, 1:2, -1]))
-        split_2 = F.relu(self.conv1_actor(inputs[:, 2:3, :]).view(-1, FEATURE_NUM))
-        split_3 = F.relu(self.conv2_actor(inputs[:, 3:4, :]).view(-1, FEATURE_NUM))
-        split_4 = F.relu(self.conv3_actor(inputs[:, 4:5, :self.a_dim]).view(-1, FEATURE_NUM))
-        split_5 = F.relu(self.fc3_actor(inputs[:, 5:6, -1]))
+        split_1 = F.relu(self.fc1_actor(inputs[:, 0:1, -1]))
+        split_2 = F.relu(self.fc2_actor(inputs[:, 1:2, -1]))
+        split_3 = F.relu(self.conv3_actor(inputs[:, 2:3, :])).view(inputs.shape[0], -1)
+        split_4 = F.relu(self.conv4_actor(inputs[:, 3:4, :]).view(inputs.shape[0], -1))
+        split_5 = F.relu(self.conv5_actor(inputs[:, 4:5, :self.a_dim]).view(inputs.shape[0], -1))
+        split_6 = F.relu(self.fc6_actor(inputs[:, 5:6, -1]))
+        split_7 = F.relu(self.fc6_actor(inputs[:, 6:7, -1]))
 
-        merge_net = torch.cat([split_0, split_1, split_2, split_3, split_4, split_5], 1)
+        merge_net = torch.cat([split_1, split_2, split_3, split_4, split_5, split_6, split_7], 1)
 
-        pi_net = F.relu(self.fc4_actor(merge_net))
+        pi_net = F.relu(self.merge_actor(merge_net))
         pi = F.softmax(self.pi_head(pi_net), dim=-1)
         pi = torch.clamp(pi, ACTION_EPS, 1. - ACTION_EPS)
         return pi
@@ -50,26 +52,28 @@ class Critic(nn.Module):
         self.s_dim = state_dim
         self.a_dim = action_dim
 
-        self.fc1_actor = nn.Linear(1, FEATURE_NUM)
-        self.fc2_actor = nn.Linear(1, FEATURE_NUM)
-        self.conv1_actor = nn.Linear(self.s_dim[1], FEATURE_NUM)
-        self.conv2_actor = nn.Linear(self.s_dim[1], FEATURE_NUM)
-        self.conv3_actor = nn.Linear(self.a_dim, FEATURE_NUM)
-        self.fc3_actor = nn.Linear(1, FEATURE_NUM)
-        self.fc4_actor = nn.Linear(FEATURE_NUM * self.s_dim[0], FEATURE_NUM)
+        self.fc1_critic = nn.Linear(1, FEATURE_NUM)
+        self.fc2_critic = nn.Linear(1, FEATURE_NUM)
+        self.conv3_critic = nn.Conv1d(kernel_size=1, in_channels=1, out_channels=FEATURE_NUM)
+        self.conv4_critic = nn.Conv1d(kernel_size=1, in_channels=1, out_channels=FEATURE_NUM)
+        self.conv5_critic = nn.Conv1d(kernel_size=1, in_channels=1, out_channels=FEATURE_NUM)
+        self.fc6_critic = nn.Linear(1, FEATURE_NUM)
+        self.fc7_critic = nn.Linear(1, FEATURE_NUM)
+        self.merge_critic = nn.Linear(3328, FEATURE_NUM)
         self.val_head = nn.Linear(FEATURE_NUM, 1)
 
     def forward(self, inputs):
-        split_0 = F.relu(self.fc1_actor(inputs[:, 0:1, -1]))
-        split_1 = F.relu(self.fc2_actor(inputs[:, 1:2, -1]))
-        split_2 = F.relu(self.conv1_actor(inputs[:, 2:3, :]).view(-1, FEATURE_NUM))
-        split_3 = F.relu(self.conv2_actor(inputs[:, 3:4, :]).view(-1, FEATURE_NUM))
-        split_4 = F.relu(self.conv3_actor(inputs[:, 4:5, :self.a_dim]).view(-1, FEATURE_NUM))
-        split_5 = F.relu(self.fc3_actor(inputs[:, 5:6, -1]))
+        split_1 = F.relu(self.fc1_critic(inputs[:, 0:1, -1]))
+        split_2 = F.relu(self.fc2_critic(inputs[:, 1:2, -1]))
+        split_3 = F.relu(self.conv3_critic(inputs[:, 2:3, :])).view(inputs.shape[0], -1)
+        split_4 = F.relu(self.conv4_critic(inputs[:, 3:4, :]).view(inputs.shape[0], -1))
+        split_5 = F.relu(self.conv5_critic(inputs[:, 4:5, :self.a_dim]).view(inputs.shape[0], -1))
+        split_6 = F.relu(self.fc6_critic(inputs[:, 5:6, -1]))
+        split_7 = F.relu(self.fc6_critic(inputs[:, 6:7, -1]))
 
-        merge_net = torch.cat([split_0, split_1, split_2, split_3, split_4, split_5], 1)
+        merge_net = torch.cat([split_1, split_2, split_3, split_4, split_5, split_6, split_7], 1)
 
-        value_net = F.relu(self.fc4_actor(merge_net))
+        value_net = F.relu(self.merge_critic(merge_net))
         value = self.val_head(value_net)
         return value
     
