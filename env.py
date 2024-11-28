@@ -21,7 +21,7 @@ RANDOM_SEED = 42
 RAND_RANGE = 1000
 EPS = 1e-6
 
-DELTA_BUFFER_K = 8
+
 
 class ABREnv():
 
@@ -36,7 +36,7 @@ class ABREnv():
         self.buffer_size = 0.
         self.state = np.zeros((S_INFO, S_LEN))
 
-        self.delta_buffers = np.zeros(DELTA_BUFFER_K)
+
 
     def seed(self, num):
         np.random.seed(num)
@@ -88,15 +88,14 @@ class ABREnv():
         self.time_stamp += sleep_time  # in ms
 
 
-        self.delta_buffers = np.roll(self.delta_buffers, -1)
-        self.delta_buffers[-1] = self.buffer_size - last_buffer_size
+
 
         # reward is video quality - rebuffer penalty - smooth penalty
         reward = VIDEO_BIT_RATE[bit_rate] / M_IN_K \
             - REBUF_PENALTY * rebuf \
             - SMOOTH_PENALTY * np.abs(VIDEO_BIT_RATE[bit_rate] -
                                       VIDEO_BIT_RATE[self.last_bit_rate]) / M_IN_K \
-            - (np.abs(np.mean(self.delta_buffers)) - 5)
+
 
         self.last_bit_rate = bit_rate
         state = np.roll(self.state, -1, axis=1)
