@@ -50,7 +50,7 @@ class ABREnv():
         delay, sleep_time, self.buffer_size, rebuf, \
             video_chunk_size, next_video_chunk_sizes, \
             end_of_video, video_chunk_remain = \
-            self.net_env.get_video_chunk(bit_rate)
+            self.net_env.get_video_chunk(bit_rate, self.max_buffer_size)
         self.buffer_occupancy = self.buffer_size / self.max_buffer_size
         state = np.roll(self.state, -1, axis=1)
 
@@ -94,7 +94,7 @@ class ABREnv():
         delay, sleep_time, self.buffer_size, rebuf, \
             video_chunk_size, next_video_chunk_sizes, \
             end_of_video, video_chunk_remain = \
-            self.net_env.get_video_chunk(bit_rate)
+            self.net_env.get_video_chunk(bit_rate, self.max_buffer_size)
         self.buffer_occupancy = self.buffer_size / self.max_buffer_size
 
         self.time_stamp += delay  # in ms

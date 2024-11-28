@@ -46,10 +46,12 @@ class Environment:
                 for line in f:
                     self.video_size[bitrate].append(int(line.split()[0]))
 
-    def get_video_chunk(self, quality):
+    def get_video_chunk(self, quality, max_buffer_size):
 
         assert quality >= 0
         assert quality < BITRATE_LEVELS
+        assert max_buffer_size > 0
+        max_buffer_size *= MILLISECONDS_IN_SECOND
 
         video_chunk_size = self.video_size[quality][self.video_chunk_counter]
         
@@ -100,6 +102,32 @@ class Environment:
         # add in the new chunk
         self.buffer_size += VIDEO_CHUNCK_LEN
 
+        # sleep if buffer > max_buffer
+        sleep_time = 0
+        if self.buffer_size > max_buffer_size:
+            # exceed the buffer limit
+            # we need to skip some network bandwidth here
+            # but do not add up the delay
+            drain_buffer_time = self.buffer_size - max_buffer_size
+            sleep_time = np.ceil(drain_buffer_time / DRAIN_BUFFER_SLEEP_TIME) * \
+                         DRAIN_BUFFER_SLEEP_TIME
+            self.buffer_size -= sleep_time
+
+            while True:
+                duration = self.cooked_time[self.mahimahi_ptr] \
+                           - self.last_mahimahi_time
+                if duration > sleep_time / MILLISECONDS_IN_SECOND:
+                    self.last_mahimahi_time += sleep_time / MILLISECONDS_IN_SECOND
+                    break
+                sleep_time -= duration * MILLISECONDS_IN_SECOND
+                self.last_mahimahi_time = self.cooked_time[self.mahimahi_ptr]
+                self.mahimahi_ptr += 1
+
+                if self.mahimahi_ptr >= len(self.cooked_bw):
+                    # loop back in the beginning
+                    # note: trace file starts with time 0
+                    self.mahimahi_ptr = 1
+                    self.last_mahimahi_time = 0
         # sleep if buffer gets too large
         sleep_time = 0
         if self.buffer_size > BUFFER_THRESH:
