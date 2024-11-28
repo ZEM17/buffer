@@ -10,6 +10,7 @@ import pandas as pd
 
 S_DIM = [7, 8]
 A_DIM = 6
+A2_DIM = 5
 ACTOR_LR_RATE = 1e-4
 NUM_AGENTS = 2
 TRAIN_SEQ_LEN = 1000  # take as a train batch
@@ -111,19 +112,23 @@ def central_agent(net_params_queues, exp_queues):
             for i in range(NUM_AGENTS):
                 net_params_queues[i].put(actor_net_params)
 
-            s, a, p, r = [], [], [], []
+            s, a1, a2, p1, p2, r = [], [], [], [], [], []
             for i in range(NUM_AGENTS):
-                s_, a_, p_, r_ = exp_queues[i].get()
+                s_, a1_, a2_, p1_, p2_, r_ = exp_queues[i].get()
                 s += s_
-                a += a_
-                p += p_
+                a1 += a1_
+                a2 += a2_
+                p1 += p1_
+                p2 += p2_
                 r += r_
             s_batch = np.stack(s, axis=0)
-            a_batch = np.vstack(a)
-            p_batch = np.vstack(p)
+            a1_batch = np.vstack(a1)
+            a2_batch = np.vstack(a2)
+            p1_batch = np.vstack(p1)
+            p2_batch = np.vstack(p2)
             v_batch = np.vstack(r)
 
-            actor.train(s_batch, a_batch, p_batch, v_batch, epoch)
+            actor.train(s_batch, a1_batch, a2_batch, p1_batch, p2_batch, v_batch, epoch)
             
             if epoch % MODEL_SAVE_INTERVAL == 0:
                 # Save the neural net parameters to disk.
@@ -155,28 +160,46 @@ def agent(agent_id, net_params_queue, exp_queue):
 
     for epoch in range(TRAIN_EPOCH):
         obs = env.reset()
-        s_batch, a_batch, p_batch, r_batch = [], [], [], []
+        s_batch, a1_batch, a2_batch, p1_batch, p2_batch, r_batch = [], [], [], [], [], []
         for step in range(TRAIN_SEQ_LEN):
             s_batch.append(obs)
 
-            action_prob = actor.predict(
+            action1_prob, action2_prob = actor.predict(
                 np.reshape(obs, (1, S_DIM[0], S_DIM[1])))
 
             # gumbel noise
-            noise = np.random.gumbel(size=len(action_prob))
-            bit_rate = np.argmax(np.log(action_prob) + noise)
+            noise = np.random.gumbel(size=len(action1_prob))
+            bit_rate = np.argmax(np.log(action1_prob) + noise)
+            max_buffer_opt = np.random.choice(len(action2_prob), size=1, p=action2_prob)[0]
+
+            if(max_buffer_opt == 0 and env.max_buffer_size > 10):
+                env.max_buffer_size -= 10
+            elif(max_buffer_opt == 1 and env.max_buffer_size > 5):
+                env.max_buffer_size -= 5
+            elif(max_buffer_opt == 2):
+                env.max_buffer_size += 0
+            elif(max_buffer_opt == 3):
+                env.max_buffer_size += 5
+            elif(max_buffer_opt == 4):
+                env.max_buffer_size += 10
 
             obs, rew, done, info = env.step(bit_rate)
 
             action_vec = np.zeros(A_DIM)
             action_vec[bit_rate] = 1
-            a_batch.append(action_vec)
+            a1_batch.append(action_vec)
+
+            action_vec = np.zeros(A2_DIM)
+            action_vec[max_buffer_opt] = 1
+            a2_batch.append(action_vec)
+
             r_batch.append(rew)
-            p_batch.append(action_prob)
+            p1_batch.append(action1_prob)
+            p2_batch.append(action2_prob)
             if done:
                 break
-        v_batch = actor.compute_v(s_batch, a_batch, r_batch, done)
-        exp_queue.put([s_batch, a_batch, p_batch, v_batch])
+        v_batch = actor.compute_v(s_batch, a1_batch, r_batch, done)
+        exp_queue.put([s_batch, a1_batch, a2_batch, p1_batch, p2_batch, v_batch])
 
         actor_net_params = net_params_queue.get()
         actor.set_network_params(actor_net_params)
