@@ -35,7 +35,7 @@ class ABREnv():
         self.last_bit_rate = DEFAULT_QUALITY
         self.buffer_size = 0.
         self.state = np.zeros((S_INFO, S_LEN))
-        self.max_buffer_size = 10000
+        self.max_buffer_size = 30
         self.buffer_occupancy = 0.
 
 
