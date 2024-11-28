@@ -8,7 +8,7 @@ import pandas as pd
 
 # os.environ['CUDA_VISIBLE_DEVICES'] = '-1'
 
-S_DIM = [6, 8]
+S_DIM = [7, 8]
 A_DIM = 6
 ACTOR_LR_RATE = 1e-4
 NUM_AGENTS = 2

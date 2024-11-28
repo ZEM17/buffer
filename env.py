@@ -5,8 +5,8 @@ import core as abrenv
 import load_trace
 
 # bit_rate, buffer_size, next_chunk_size, bandwidth_measurement(throughput and time), chunk_til_video_end
-S_INFO = 6
-S_LEN = 8  # take how many frames in the past
+S_INFO = 7
+S_LEN = 8  # take how many frames in the past K
 A_DIM = 6
 TRAIN_SEQ_LEN = 100  # take as a train batch
 MODEL_SAVE_INTERVAL = 100
@@ -20,8 +20,6 @@ DEFAULT_QUALITY = 1  # default video quality without agent
 RANDOM_SEED = 42
 RAND_RANGE = 1000
 EPS = 1e-6
-
-W_BUFFER = 1
 
 class ABREnv():
 
@@ -37,7 +35,7 @@ class ABREnv():
         self.state = np.zeros((S_INFO, S_LEN))
         self.max_buffer_size = 30
         self.buffer_occupancy = 0.
-
+        self.buffer_weight = 1
 
     def seed(self, num):
         np.random.seed(num)
@@ -57,18 +55,28 @@ class ABREnv():
         state = np.roll(self.state, -1, axis=1)
 
         # this should be S_INFO number of terms
+        # q_t
         state[0, -1] = VIDEO_BIT_RATE[bit_rate] / \
             float(np.max(VIDEO_BIT_RATE))  # last quality
-        state[1, -1] = self.buffer_size / BUFFER_NORM_FACTOR  # 10 sec
+        # b_t
+        state[1, -1] = self.buffer_occupancy  # 10 sec
+        # c_t
         state[2, -1] = float(video_chunk_size) / \
             float(delay) / M_IN_K  # kilo byte / ms
         # state[2, :] = float(video_chunk_size) / \
         #     float(delay) / M_IN_K  # kilo byte / ms
+        # m_t
         state[3, -1] = float(delay) / M_IN_K / BUFFER_NORM_FACTOR  # 10 sec
-        state[4, :A_DIM] = np.array(
-            next_video_chunk_sizes) / M_IN_K / M_IN_K  # mega byte
-        state[5, -1] = np.minimum(video_chunk_remain,
-                                  CHUNK_TIL_VIDEO_END_CAP) / float(CHUNK_TIL_VIDEO_END_CAP)
+        # # no use
+        # state[4, :A_DIM] = np.array(
+        #     next_video_chunk_sizes) / M_IN_K / M_IN_K  # mega byte
+        # # no use
+        # state[5, -1] = np.minimum(video_chunk_remain,
+        #                           CHUNK_TIL_VIDEO_END_CAP) / float(CHUNK_TIL_VIDEO_END_CAP)
+
+        state[4, -1] = np.mean(next_video_chunk_sizes)
+        state[5, -1] = self.max_buffer_size
+        state[6, -1] = self.buffer_weight
         self.state = state
         return state
 
@@ -97,7 +105,7 @@ class ABREnv():
             - REBUF_PENALTY * rebuf \
             - SMOOTH_PENALTY * np.abs(VIDEO_BIT_RATE[bit_rate] -
                                       VIDEO_BIT_RATE[self.last_bit_rate]) / M_IN_K \
-            - W_BUFFER * self.buffer_occupancy
+            - self.buffer_weight * self.buffer_occupancy
 
         self.last_bit_rate = bit_rate
         state = np.roll(self.state, -1, axis=1)
@@ -109,10 +117,9 @@ class ABREnv():
         state[2, -1] = float(video_chunk_size) / \
             float(delay) / M_IN_K  # kilo byte / ms
         state[3, -1] = float(delay) / M_IN_K / BUFFER_NORM_FACTOR  # 10 sec
-        state[4, :A_DIM] = np.array(
-            next_video_chunk_sizes) / M_IN_K / M_IN_K  # mega byte
-        state[5, -1] = np.minimum(video_chunk_remain,
-                                  CHUNK_TIL_VIDEO_END_CAP) / float(CHUNK_TIL_VIDEO_END_CAP)
+        state[4, -1] = np.mean(next_video_chunk_sizes)
+        state[5, -1] = self.max_buffer_size
+        state[6, -1] = self.buffer_weight
 
         self.state = state
         #observation, reward, done, info = env.step(action)
