@@ -73,8 +73,10 @@ class ABREnv():
         # # no use
         # state[5, -1] = np.minimum(video_chunk_remain,
         #                           CHUNK_TIL_VIDEO_END_CAP) / float(CHUNK_TIL_VIDEO_END_CAP)
-
-        state[4, -1] = np.mean(next_video_chunk_sizes)
+        avg_video_chunk_sizes = np.zeros(A_DIM)
+        for i in range(A_DIM):
+            avg_video_chunk_sizes[i] = np.mean(self.net_env.video_size[i])
+        state[4, :A_DIM] = avg_video_chunk_sizes / M_IN_K / M_IN_K  # mega byte
         state[5, -1] = self.max_buffer_size
         state[6, -1] = self.buffer_weight
         self.state = state
@@ -117,7 +119,7 @@ class ABREnv():
         state[2, -1] = float(video_chunk_size) / \
             float(delay) / M_IN_K  # kilo byte / ms
         state[3, -1] = float(delay) / M_IN_K / BUFFER_NORM_FACTOR  # 10 sec
-        state[4, -1] = np.mean(next_video_chunk_sizes)
+        # state 4 不用动
         state[5, -1] = self.max_buffer_size
         state[6, -1] = self.buffer_weight
 
