@@ -25,7 +25,7 @@ RAND_RANGE = 1000
 LOG_FILE = './test_results/log_sim_ppo'
 TEST_TRACES = './test/'
 # log in format of time_stamp bit_rate buffer_size rebuffer_time chunk_size download_time reward
-NN_MODEL = './ppo/nn_model_ep_1115.pth'
+NN_MODEL = './ppo/nn_model_ep_1117.pth'
 
 SUMMARY_DIR = './summary'
 

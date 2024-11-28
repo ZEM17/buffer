@@ -11,10 +11,10 @@ import pandas as pd
 S_DIM = [6, 8]
 A_DIM = 6
 ACTOR_LR_RATE = 1e-4
-NUM_AGENTS = 4
+NUM_AGENTS = 2
 TRAIN_SEQ_LEN = 1000  # take as a train batch
 TRAIN_EPOCH = 500000
-MODEL_SAVE_INTERVAL = 300
+MODEL_SAVE_INTERVAL = 500
 RANDOM_SEED = 42
 SUMMARY_DIR = './ppo'
 MODEL_DIR = './models'
