@@ -21,7 +21,7 @@ RANDOM_SEED = 42
 RAND_RANGE = 1000
 EPS = 1e-6
 
-
+W_BUFFER = 1
 
 class ABREnv():
 
@@ -35,7 +35,8 @@ class ABREnv():
         self.last_bit_rate = DEFAULT_QUALITY
         self.buffer_size = 0.
         self.state = np.zeros((S_INFO, S_LEN))
-
+        self.max_buffer_size = 10000
+        self.buffer_occupancy = 0.
 
 
     def seed(self, num):
@@ -52,6 +53,7 @@ class ABREnv():
             video_chunk_size, next_video_chunk_sizes, \
             end_of_video, video_chunk_remain = \
             self.net_env.get_video_chunk(bit_rate)
+        self.buffer_occupancy = self.buffer_size / self.buffer_occupancy
         state = np.roll(self.state, -1, axis=1)
 
         # this should be S_INFO number of terms
@@ -83,6 +85,7 @@ class ABREnv():
             video_chunk_size, next_video_chunk_sizes, \
             end_of_video, video_chunk_remain = \
             self.net_env.get_video_chunk(bit_rate)
+        self.buffer_occupancy = self.buffer_size / self.buffer_occupancy
 
         self.time_stamp += delay  # in ms
         self.time_stamp += sleep_time  # in ms
@@ -90,12 +93,11 @@ class ABREnv():
 
 
 
-        # reward is video quality - rebuffer penalty - smooth penalty
         reward = VIDEO_BIT_RATE[bit_rate] / M_IN_K \
             - REBUF_PENALTY * rebuf \
             - SMOOTH_PENALTY * np.abs(VIDEO_BIT_RATE[bit_rate] -
                                       VIDEO_BIT_RATE[self.last_bit_rate]) / M_IN_K \
-
+            - W_BUFFER * self.buffer_occupancy
 
         self.last_bit_rate = bit_rate
         state = np.roll(self.state, -1, axis=1)
