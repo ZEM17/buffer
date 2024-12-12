@@ -9,7 +9,7 @@ ACTION_EPS = 1e-4
 GAMMA = 0.99
 EPS = 0.2  # PPO2 epsilon
 
-device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
 
 class Actor(nn.Module):
     def __init__(self, state_dim, action_dim):
@@ -45,9 +45,11 @@ class Actor(nn.Module):
 
         a1 = self.bitrate_action(merge_net)
         a1 = F.softmax(self.bitrate_pi_head(a1), dim=-1)
+        a1 = torch.clamp(a1, ACTION_EPS, 1. - ACTION_EPS)
 
         a2 = self.max_buffer_action(merge_net)
         a2 = F.softmax(self.max_buffer_pi_head(a2), dim=-1)
+        a2 = torch.clamp(a2, ACTION_EPS, 1. - ACTION_EPS)
         # pi_net = F.relu(self.merge_actor(merge_net))
         # pi = F.softmax(self.pi_head(pi_net), dim=-1)
         # pi = torch.clamp(pi, ACTION_EPS, 1. - ACTION_EPS)

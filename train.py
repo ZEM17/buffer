@@ -12,7 +12,7 @@ S_DIM = [7, 8]
 A_DIM = 6
 A2_DIM = 5
 ACTOR_LR_RATE = 1e-4
-NUM_AGENTS = 2
+NUM_AGENTS = 4
 TRAIN_SEQ_LEN = 1000  # take as a train batch
 TRAIN_EPOCH = 500000
 MODEL_SAVE_INTERVAL = 500
@@ -178,9 +178,9 @@ def agent(agent_id, net_params_queue, exp_queue):
                 env.max_buffer_size -= 5
             elif(max_buffer_opt == 2):
                 env.max_buffer_size += 0
-            elif(max_buffer_opt == 3):
+            elif(max_buffer_opt == 3 and env.max_buffer_size < 55):
                 env.max_buffer_size += 5
-            elif(max_buffer_opt == 4):
+            elif(max_buffer_opt == 4 and env.max_buffer_size < 50):
                 env.max_buffer_size += 10
 
             obs, rew, done, info = env.step(bit_rate)

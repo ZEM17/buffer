@@ -129,31 +129,31 @@ class Environment:
                     self.mahimahi_ptr = 1
                     self.last_mahimahi_time = 0
         # sleep if buffer gets too large
-        sleep_time = 0
-        if self.buffer_size > BUFFER_THRESH:
-            # exceed the buffer limit
-            # we need to skip some network bandwidth here
-            # but do not add up the delay
-            drain_buffer_time = self.buffer_size - BUFFER_THRESH
-            sleep_time = np.ceil(drain_buffer_time / DRAIN_BUFFER_SLEEP_TIME) * \
-                         DRAIN_BUFFER_SLEEP_TIME
-            self.buffer_size -= sleep_time
-
-            while True:
-                duration = self.cooked_time[self.mahimahi_ptr] \
-                           - self.last_mahimahi_time
-                if duration > sleep_time / MILLISECONDS_IN_SECOND:
-                    self.last_mahimahi_time += sleep_time / MILLISECONDS_IN_SECOND
-                    break
-                sleep_time -= duration * MILLISECONDS_IN_SECOND
-                self.last_mahimahi_time = self.cooked_time[self.mahimahi_ptr]
-                self.mahimahi_ptr += 1
-
-                if self.mahimahi_ptr >= len(self.cooked_bw):
-                    # loop back in the beginning
-                    # note: trace file starts with time 0
-                    self.mahimahi_ptr = 1
-                    self.last_mahimahi_time = 0
+        # sleep_time = 0
+        # if self.buffer_size > BUFFER_THRESH:
+        #     # exceed the buffer limit
+        #     # we need to skip some network bandwidth here
+        #     # but do not add up the delay
+        #     drain_buffer_time = self.buffer_size - BUFFER_THRESH
+        #     sleep_time = np.ceil(drain_buffer_time / DRAIN_BUFFER_SLEEP_TIME) * \
+        #                  DRAIN_BUFFER_SLEEP_TIME
+        #     self.buffer_size -= sleep_time
+        #
+        #     while True:
+        #         duration = self.cooked_time[self.mahimahi_ptr] \
+        #                    - self.last_mahimahi_time
+        #         if duration > sleep_time / MILLISECONDS_IN_SECOND:
+        #             self.last_mahimahi_time += sleep_time / MILLISECONDS_IN_SECOND
+        #             break
+        #         sleep_time -= duration * MILLISECONDS_IN_SECOND
+        #         self.last_mahimahi_time = self.cooked_time[self.mahimahi_ptr]
+        #         self.mahimahi_ptr += 1
+        #
+        #         if self.mahimahi_ptr >= len(self.cooked_bw):
+        #             # loop back in the beginning
+        #             # note: trace file starts with time 0
+        #             self.mahimahi_ptr = 1
+        #             self.last_mahimahi_time = 0
 
         # the "last buffer size" return to the controller
         # Note: in old version of dash the lowest buffer is 0.

@@ -45,10 +45,16 @@ class Environment:
                 for line in f:
                     self.video_size[bitrate].append(int(line.split()[0]))
 
-    def get_video_chunk(self, quality):
+    def get_video_chunk(self, quality, max_buffer_size=0):
 
         assert quality >= 0
         assert quality < BITRATE_LEVELS
+
+        # for test if algorithm don't output max_buffer
+        if max_buffer_size == 0:
+            max_buffer_size = BUFFER_THRESH
+        else:
+            max_buffer_size *= MILLISECONDS_IN_SECOND
 
         video_chunk_size = self.video_size[quality][self.video_chunk_counter]
 
@@ -97,11 +103,11 @@ class Environment:
 
         # sleep if buffer gets too large
         sleep_time = 0
-        if self.buffer_size > BUFFER_THRESH:
+        if self.buffer_size > max_buffer_size:
             # exceed the buffer limit
             # we need to skip some network bandwidth here
             # but do not add up the delay
-            drain_buffer_time = self.buffer_size - BUFFER_THRESH
+            drain_buffer_time = self.buffer_size - max_buffer_size
             sleep_time = np.ceil(drain_buffer_time / DRAIN_BUFFER_SLEEP_TIME) * \
                          DRAIN_BUFFER_SLEEP_TIME
             self.buffer_size -= sleep_time
