@@ -75,7 +75,7 @@ def main():
         delay, sleep_time, buffer_size, rebuf, \
         video_chunk_size, next_video_chunk_sizes, \
         end_of_video, video_chunk_remain = \
-            net_env.get_video_chunk(bit_rate)
+            net_env.get_video_chunk(bit_rate, max_buffer_size)
         buffer_occupancy = buffer_size / max_buffer_size
         time_stamp += delay  # in ms
         time_stamp += sleep_time  # in ms

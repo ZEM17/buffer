@@ -35,7 +35,7 @@ class ABREnv():
         self.state = np.zeros((S_INFO, S_LEN))
         self.max_buffer_size = 30
         self.buffer_occupancy = 0.
-        self.buffer_weight = 0.9
+        self.buffer_weight = 1.0
 
     def seed(self, num):
         np.random.seed(num)
