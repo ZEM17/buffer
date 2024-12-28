@@ -33,7 +33,7 @@ class ABREnv():
         self.last_bit_rate = DEFAULT_QUALITY
         self.buffer_size = 0.
         self.state = np.zeros((S_INFO, S_LEN))
-        self.max_buffer_size = 30
+        self.max_buffer_size = 60
         self.buffer_occupancy = 0.
         self.buffer_weight = 1.0
 
@@ -107,7 +107,8 @@ class ABREnv():
             - REBUF_PENALTY * rebuf \
             - SMOOTH_PENALTY * np.abs(VIDEO_BIT_RATE[bit_rate] -
                                       VIDEO_BIT_RATE[self.last_bit_rate]) / M_IN_K \
-            - self.buffer_weight * self.buffer_occupancy
+            - self.buffer_weight * self.buffer_size * (bit_rate + 1) \
+            # - self.buffer_weight * self.buffer_size * (bit_rate+1)
 
         self.last_bit_rate = bit_rate
         state = np.roll(self.state, -1, axis=1)

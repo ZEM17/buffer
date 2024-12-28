@@ -12,7 +12,7 @@ S_DIM = [7, 8]
 A_DIM = 6
 A2_DIM = 5
 ACTOR_LR_RATE = 1e-4
-NUM_AGENTS = 4
+NUM_AGENTS = 2
 TRAIN_SEQ_LEN = 1000  # take as a train batch
 TRAIN_EPOCH = 500000
 MODEL_SAVE_INTERVAL = 500
@@ -40,20 +40,26 @@ def testing(epoch, nn_model, log_file):
     os.system('python test.py ' + nn_model)
 
     # append test performance to the log
-    rewards, entropies = [], []
+    rewards, entropies, buffers, max_buffers, buffer_occupancys = [], [], [], [], []
     test_log_files = os.listdir(TEST_LOG_FOLDER)
     for test_log_file in test_log_files:
-        reward, entropy = [], []
+        reward, entropy, buffer, max_buffer, buffer_occupancy = [], [], [], [], []
         with open(TEST_LOG_FOLDER + test_log_file, 'rb') as f:
             for line in f:
                 parse = line.split()
                 try:
+                    buffer_occupancy.append(float(parse[-3]))
+                    max_buffer.append(float(parse[-4]))
+                    buffer.append(float(parse[2]))
                     entropy.append(float(parse[-2]))
                     reward.append(float(parse[-1]))
                 except IndexError:
                     break
         rewards.append(np.mean(reward[1:]))
         entropies.append(np.mean(entropy[1:]))
+        buffers.append(np.mean(buffer[1:]))
+        max_buffers.append(np.mean(max_buffer[1:]))
+        buffer_occupancys.append(np.mean(buffer_occupancy[1:]))
 
     rewards = np.array(rewards)
 
@@ -73,7 +79,7 @@ def testing(epoch, nn_model, log_file):
                    str(rewards_max) + '\n')
     log_file.flush()
 
-    return rewards_mean, np.mean(entropies)
+    return rewards_mean, np.mean(entropies), np.mean(buffers), np.mean(max_buffers), np.mean(buffer_occupancys)
         
 def central_agent(net_params_queues, exp_queues):
 
@@ -134,11 +140,11 @@ def central_agent(net_params_queues, exp_queues):
                 # Save the neural net parameters to disk.
                 actor.save_model(SUMMARY_DIR + '/nn_model_ep_' + str(epoch) + '.pth')
                 
-                avg_reward, avg_entropy = testing(epoch,
+                avg_reward, avg_entropy, avg_buffer, avg_maxbuf, avg_buff_occupy= testing(epoch,
                     SUMMARY_DIR + '/nn_model_ep_' + str(epoch) + '.pth', 
                     test_log_file)
 
-                print("epoch:{}, reward:{}".format(epoch, avg_reward))
+                print("epoch:{}, reward:{}, buffer:{}, maxbuf:{}, occupy:{}, ratio:{}".format(epoch, avg_reward, avg_buffer, avg_maxbuf, avg_buff_occupy, avg_reward/avg_buffer))
 
                 summary_reward = {
                     'ep': [epoch],

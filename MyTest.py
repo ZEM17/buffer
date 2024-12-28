@@ -6,6 +6,7 @@ import load_trace
 import ppo2_cuda as network
 import fixed_env as env
 import pandas as pd
+from pathlib import Path
 
 S_INFO = 7
 S_LEN = 8  # take how many frames in the past
@@ -24,8 +25,8 @@ RAND_RANGE = 1000
 LOG_FILE = './test_results/log_sim_ppo'
 TEST_TRACES = './test/'
 # log in format of time_stamp bit_rate buffer_size rebuffer_time chunk_size download_time reward
-NN_MODEL = './pretrain/nn_model_ep_101000.pth'
-SUMMARY_DIR = './summary'
+NN_MODEL = './pretrain/nn_model_ep_79000.pth'
+SUMMARY_DIR = './summary/'
 
 def main():
     np.random.seed(RANDOM_SEED)
@@ -64,7 +65,7 @@ def main():
     video_count = 0
 
     buffer_weight = 1
-    max_buffer_size = 30
+    max_buffer_size = 60
     buffer_occupancy = 0.
 
 
@@ -191,7 +192,6 @@ def main():
 
             log_path = LOG_FILE + '_' + all_file_names[net_env.trace_idx]
             log_file = open(log_path, 'w')
-
-
+            first_step = True
 if __name__ == '__main__':
     main()
