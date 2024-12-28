@@ -118,23 +118,24 @@ def central_agent(net_params_queues, exp_queues):
             for i in range(NUM_AGENTS):
                 net_params_queues[i].put(actor_net_params)
 
-            s, a1, a2, p1, p2, r = [], [], [], [], [], []
+            s, a1, a2, p1, p2, r, adv = [], [], [], [], [], [], []
             for i in range(NUM_AGENTS):
-                s_, a1_, a2_, p1_, p2_, r_ = exp_queues[i].get()
+                s_, a1_, a2_, p1_, p2_, r_, adv_ = exp_queues[i].get()
                 s += s_
                 a1 += a1_
                 a2 += a2_
                 p1 += p1_
                 p2 += p2_
                 r += r_
+                adv += adv_
             s_batch = np.stack(s, axis=0)
             a1_batch = np.vstack(a1)
             a2_batch = np.vstack(a2)
             p1_batch = np.vstack(p1)
             p2_batch = np.vstack(p2)
             v_batch = np.vstack(r)
-
-            actor.train(s_batch, a1_batch, a2_batch, p1_batch, p2_batch, v_batch, epoch)
+            adv_batch = np.vstack(adv)
+            actor.train(s_batch, a1_batch, a2_batch, p1_batch, p2_batch, v_batch, adv_batch, epoch)
             
             if epoch % MODEL_SAVE_INTERVAL == 0:
                 # Save the neural net parameters to disk.
@@ -204,8 +205,9 @@ def agent(agent_id, net_params_queue, exp_queue):
             p2_batch.append(action2_prob)
             if done:
                 break
-        v_batch = actor.compute_v(s_batch, a1_batch, r_batch, done)
-        exp_queue.put([s_batch, a1_batch, a2_batch, p1_batch, p2_batch, v_batch])
+        v_batch = actor.compute_v(s_batch, r_batch, done)
+        gae_batch = actor.compute_gae(r_batch, s_batch)
+        exp_queue.put([s_batch, a1_batch, a2_batch, p1_batch, p2_batch, v_batch, gae_batch])
 
         actor_net_params = net_params_queue.get()
         actor.set_network_params(actor_net_params)

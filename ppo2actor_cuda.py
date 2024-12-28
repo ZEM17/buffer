@@ -11,6 +11,7 @@ EPS = 0.2  # PPO2 epsilon
 
 device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
 
+# bitrate actor
 class Actor1(nn.Module):
     def __init__(self, state_dim, action_dim):
         super(Actor1, self).__init__()
@@ -42,12 +43,9 @@ class Actor1(nn.Module):
         a1 = self.bitrate_action(merge_net)
         a1 = F.softmax(self.bitrate_pi_head(a1), dim=-1)
         a1 = torch.clamp(a1, ACTION_EPS, 1. - ACTION_EPS)
-
-        # pi_net = F.relu(self.merge_actor(merge_net))
-        # pi = F.softmax(self.pi_head(pi_net), dim=-1)
-        # pi = torch.clamp(pi, ACTION_EPS, 1. - ACTION_EPS)
         return a1
 
+# buffer actor
 class Actor2(nn.Module):
     def __init__(self, state_dim, action_dim):
         super(Actor2, self).__init__()
@@ -80,9 +78,6 @@ class Actor2(nn.Module):
         a2 = self.max_buffer_action(merge_net)
         a2 = F.softmax(self.max_buffer_pi_head(a2), dim=-1)
         a2 = torch.clamp(a2, ACTION_EPS, 1. - ACTION_EPS)
-        # pi_net = F.relu(self.merge_actor(merge_net))
-        # pi = F.softmax(self.pi_head(pi_net), dim=-1)
-        # pi = torch.clamp(pi, ACTION_EPS, 1. - ACTION_EPS)
         return a2
 
 class Critic(nn.Module):
@@ -147,21 +142,21 @@ class Network():
         return torch.sum(pi_new * acts, dim=1, keepdim=True) / \
                torch.sum(pi_old * acts, dim=1, keepdim=True)
 
-    def train(self, s_batch, a1_batch, a2_batch, p1_batch, p2_batch, v_batch, epoch):
+    def train(self, s_batch, a1_batch, a2_batch, p1_batch, p2_batch, v_batch, adv_batch, epoch):
         s_batch = torch.from_numpy(s_batch).to(torch.float32).to(device)
         a1_batch = torch.from_numpy(a1_batch).to(torch.float32).to(device)
         a2_batch = torch.from_numpy(a2_batch).to(torch.float32).to(device)
         p1_batch = torch.from_numpy(p1_batch).to(torch.float32).to(device)
         p2_batch = torch.from_numpy(p2_batch).to(torch.float32).to(device)
         v_batch = torch.from_numpy(v_batch).to(torch.float32).to(device)
-
+        adv_batch = torch.from_numpy(adv_batch).to(torch.float32).to(device)
         for _ in range(self.PPO_TRAINING_EPO):
             pi1 = self.actor1.forward(s_batch)
             pi2 = self.actor2.forward(s_batch)
             val = self.critic.forward(s_batch)
 
+            adv = adv_batch
             # loss1
-            adv = v_batch - val.detach()
             ratio1 = self.r(pi1, p1_batch, a1_batch)
             ppo2loss1 = torch.min(ratio1 * adv, torch.clamp(ratio1, 1 - EPS, 1 + EPS) * adv)
             # Dual-PPO
@@ -205,7 +200,7 @@ class Network():
         model_params = [self.actor1.state_dict(), self.actor2.state_dict(), self.critic.state_dict()]
         torch.save(model_params, nn_model)
 
-    def compute_v(self, s_batch, a_batch, r_batch, terminal):
+    def compute_v(self, s_batch, r_batch, terminal):
         R_batch = np.zeros_like(r_batch)
 
         if terminal:
@@ -219,4 +214,24 @@ class Network():
             R_batch[t] = r_batch[t] + GAMMA * R_batch[t + 1]
 
         return list(R_batch)
-           
+
+    def compute_gae(self, r, s, lam=0.95):
+        s_batch = np.stack(s, axis=0)
+        s_batch = torch.from_numpy(s_batch).to(torch.float32).to(device)
+        values = self.critic.forward(s_batch)
+        a = torch.tensor([[0.]]).to(device)
+        values = torch.cat([values, a], dim=0)
+        rewards = r
+
+        T = len(rewards)  # 轨迹的长度
+        advantages = np.zeros(T)  # 存储每一步的优势估计
+        gae = 0  # 初始化 GAE 累积变量
+
+        for t in reversed(range(T)):  # 从最后一步开始计算
+            # TD 误差 δ_t
+            delta = rewards[t] + GAMMA * values[t+1] - values[t]
+            # GAE 的递推公式
+            gae = delta + GAMMA * lam * gae
+            advantages[t] = gae
+
+        return list(advantages)
