@@ -107,7 +107,7 @@ class ABREnv():
             - REBUF_PENALTY * rebuf \
             - SMOOTH_PENALTY * np.abs(VIDEO_BIT_RATE[bit_rate] -
                                       VIDEO_BIT_RATE[self.last_bit_rate]) / M_IN_K \
-            - self.buffer_weight * self.buffer_size * (bit_rate + 1) \
+            - self.buffer_weight * self.buffer_size \
             # - self.buffer_weight * self.buffer_size * (bit_rate+1)
 
         self.last_bit_rate = bit_rate
