@@ -12,12 +12,12 @@ S_DIM = [7, 8]
 A_DIM = 6
 A2_DIM = 5
 ACTOR_LR_RATE = 1e-4
-NUM_AGENTS = 16
+NUM_AGENTS = 2
 TRAIN_SEQ_LEN = 1000  # take as a train batch
 TRAIN_EPOCH = 500000
 MODEL_SAVE_INTERVAL = 500
 RANDOM_SEED = 42
-SUMMARY_DIR = './ppo2actor'
+SUMMARY_DIR = './ppo_2actor_buffer'
 MODEL_DIR = './models'
 TRAIN_TRACES = './train/'
 TEST_LOG_FOLDER = './test_results/'
@@ -37,7 +37,7 @@ def testing(epoch, nn_model, log_file):
     if not os.path.exists(TEST_LOG_FOLDER):
         os.makedirs(TEST_LOG_FOLDER)
     # run test script
-    os.system('python test.py ' + nn_model)
+    os.system('python test_HA.py ' + nn_model)
 
     # append test performance to the log
     rewards, entropies, buffers, max_buffers, buffer_occupancys = [], [], [], [], []

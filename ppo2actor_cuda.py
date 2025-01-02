@@ -197,44 +197,69 @@ class Network():
             pi1 = self.actor1.forward(s_batch)
             pi2 = self.actor2.forward(s_batch)
             val = self.critic.forward(s_batch)
-
             adv = adv_batch
-            # loss1
-            ratio1 = self.r(pi1, p1_batch, a1_batch)
-            ppo2loss1 = torch.min(ratio1 * adv, torch.clamp(ratio1, 1 - EPS, 1 + EPS) * adv)
-            # Dual-PPO
-            dual_loss1 = torch.where(adv < 0, torch.max(ppo2loss1, 3. * adv), ppo2loss1)
-            loss1_entropy = torch.sum(-pi1 * torch.log(pi1), dim=1, keepdim=True)
-            loss1 = -dual_loss1.mean() - self._entropy_weight * loss1_entropy.mean()
-            self.actor1.optimizer.zero_grad()
-            loss1.backward()
-            self.actor1.optimizer.step()
 
-            pi1_new = self.actor1.forward(s_batch)
-            update_ratio = self.r(pi1_new, p1_batch, a1_batch)
-            adv = adv * update_ratio
+            # 随机顺序
+            i = random.choice([0, 1])
 
-            # loss2
-            ratio2 = self.r(pi2, p2_batch, a2_batch)
-            ppo2loss2 = torch.min(ratio2 * adv, torch.clamp(ratio2, 1 - EPS, 1 + EPS) * adv)
-            # Dual-PPO
-            dual_loss2 = torch.where(adv < 0, torch.max(ppo2loss2, 3. * adv), ppo2loss2)
-            loss2_entropy = torch.sum(-pi2 * torch.log(pi2), dim=1, keepdim=True)
-            loss2 = -dual_loss2.mean() - self._entropy_weight * loss2_entropy.mean()
-            self.actor2.optimizer.zero_grad()
-            loss2.backward()
-            self.actor2.optimizer.step()
+            if i == 0:
+                # loss1
+                ratio1 = self.r(pi1, p1_batch, a1_batch)
+                ppo2loss1 = torch.min(ratio1 * adv, torch.clamp(ratio1, 1 - EPS, 1 + EPS) * adv)
+                # Dual-PPO
+                dual_loss1 = torch.where(adv < 0, torch.max(ppo2loss1, 3. * adv), ppo2loss1)
+                loss1_entropy = torch.sum(-pi1 * torch.log(pi1), dim=1, keepdim=True)
+                loss1 = -dual_loss1.mean() - self._entropy_weight * loss1_entropy.mean()
+                self.actor1.optimizer.zero_grad()
+                loss1.backward()
+                self.actor1.optimizer.step()
+
+                pi1_new = self.actor1.forward(s_batch)
+                update_ratio = self.r(pi1_new, p1_batch, a1_batch)
+                adv = adv * update_ratio
+
+                # loss2
+                ratio2 = self.r(pi2, p2_batch, a2_batch)
+                ppo2loss2 = torch.min(ratio2 * adv, torch.clamp(ratio2, 1 - EPS, 1 + EPS) * adv)
+                # Dual-PPO
+                dual_loss2 = torch.where(adv < 0, torch.max(ppo2loss2, 3. * adv), ppo2loss2)
+                loss2_entropy = torch.sum(-pi2 * torch.log(pi2), dim=1, keepdim=True)
+                loss2 = -dual_loss2.mean() - self._entropy_weight * loss2_entropy.mean()
+                self.actor2.optimizer.zero_grad()
+                loss2.backward()
+                self.actor2.optimizer.step()
+            else:
+                # loss2
+                ratio2 = self.r(pi2, p2_batch, a2_batch)
+                ppo2loss2 = torch.min(ratio2 * adv, torch.clamp(ratio2, 1 - EPS, 1 + EPS) * adv)
+                # Dual-PPO
+                dual_loss2 = torch.where(adv < 0, torch.max(ppo2loss2, 3. * adv), ppo2loss2)
+                loss2_entropy = torch.sum(-pi2 * torch.log(pi2), dim=1, keepdim=True)
+                loss2 = -dual_loss2.mean() - self._entropy_weight * loss2_entropy.mean()
+                self.actor2.optimizer.zero_grad()
+                loss2.backward()
+                self.actor2.optimizer.step()
+
+                pi2_new = self.actor2.forward(s_batch)
+                update_ratio = self.r(pi2_new, p2_batch, a2_batch)
+                adv = adv * update_ratio
+
+                # loss1
+                ratio1 = self.r(pi1, p1_batch, a1_batch)
+                ppo2loss1 = torch.min(ratio1 * adv, torch.clamp(ratio1, 1 - EPS, 1 + EPS) * adv)
+                # Dual-PPO
+                dual_loss1 = torch.where(adv < 0, torch.max(ppo2loss1, 3. * adv), ppo2loss1)
+                loss1_entropy = torch.sum(-pi1 * torch.log(pi1), dim=1, keepdim=True)
+                loss1 = -dual_loss1.mean() - self._entropy_weight * loss1_entropy.mean()
+                self.actor1.optimizer.zero_grad()
+                loss1.backward()
+                self.actor1.optimizer.step()
 
             # loss3
             loss3 = F.mse_loss(val, v_batch)
             self.critic.optimizer.zero_grad()
             loss3.backward()
             self.critic.optimizer.step()
-
-            # loss = loss1 + loss2
-            # self.optimizer.zero_grad()
-            # loss.backward()
-            # self.optimizer.step()
 
         # Update entropy weight
         _H = (-(torch.log(p1_batch) * p1_batch).sum(dim=1)).mean().item()
