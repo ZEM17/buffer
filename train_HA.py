@@ -95,7 +95,9 @@ def central_agent(net_params_queues, exp_queues):
             'ep': [],
             'reward': [],
             'entropy': [],
-            'entropy_weight': []
+            'entropy_weight': [],
+            'buffer': [],
+            'max_buffer': [],
         }
         summary_loss = {
             'ep': [],
@@ -145,13 +147,15 @@ def central_agent(net_params_queues, exp_queues):
                     SUMMARY_DIR + '/nn_model_ep_' + str(epoch) + '.pth', 
                     test_log_file)
 
-                print("epoch:{}, reward:{}, buffer:{}, maxbuf:{}, occupy:{}, ratio:{}".format(epoch, avg_reward, avg_buffer, avg_maxbuf, avg_buff_occupy, avg_reward/avg_buffer))
+                print("epoch:{}, reward:{}, buffer:{}, maxbuf:{}".format(epoch, avg_reward, avg_buffer, avg_maxbuf))
 
                 summary_reward = {
                     'ep': [epoch],
                     'reward': [avg_reward],
                     'entropy': [avg_entropy],
-                    'entropy_weight': [actor._entropy_weight]
+                    'entropy_weight': [actor._entropy_weight],
+                    'buffer': [avg_buffer],
+                    'max_buffer': [avg_maxbuf]
                 }
                 pd.DataFrame(summary_reward).to_csv(SUMMARY_DIR + '/summary_reward.csv', mode='a', index=False, header=False)
 

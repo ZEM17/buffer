@@ -2,7 +2,7 @@ import multiprocessing as mp
 import numpy as np
 import os
 from env import ABREnv
-import ppo2actor_cuda as network
+import ppo2_cuda as network
 import torch
 import pandas as pd
 
@@ -95,7 +95,9 @@ def central_agent(net_params_queues, exp_queues):
             'ep': [],
             'reward': [],
             'entropy': [],
-            'entropy_weight': []
+            'entropy_weight': [],
+            'buffer':[],
+            'max_buffer': [],
         }
         summary_loss = {
             'ep': [],
@@ -144,13 +146,15 @@ def central_agent(net_params_queues, exp_queues):
                     SUMMARY_DIR + '/nn_model_ep_' + str(epoch) + '.pth', 
                     test_log_file)
 
-                print("epoch:{}, reward:{}, buffer:{}, maxbuf:{}, occupy:{}, ratio:{}".format(epoch, avg_reward, avg_buffer, avg_maxbuf, avg_buff_occupy, avg_reward/avg_buffer))
+                print("epoch:{}, reward:{}, buffer:{}, maxbuf:{}".format(epoch, avg_reward, avg_buffer, avg_maxbuf))
 
                 summary_reward = {
                     'ep': [epoch],
                     'reward': [avg_reward],
                     'entropy': [avg_entropy],
-                    'entropy_weight': [actor._entropy_weight]
+                    'entropy_weight': [actor._entropy_weight],
+                    'buffer': [avg_buffer],
+                    'max_buffer': [avg_maxbuf]
                 }
                 pd.DataFrame(summary_reward).to_csv(SUMMARY_DIR + '/summary_reward.csv', mode='a', index=False, header=False)
 
@@ -204,7 +208,7 @@ def agent(agent_id, net_params_queue, exp_queue):
             p2_batch.append(action2_prob)
             if done:
                 break
-        v_batch = actor.compute_v(s_batch, a1_batch, r_batch, done)
+        v_batch = actor.compute_v(s_batch, r_batch, done)
         exp_queue.put([s_batch, a1_batch, a2_batch, p1_batch, p2_batch, v_batch])
 
         actor_net_params = net_params_queue.get()

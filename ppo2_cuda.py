@@ -171,7 +171,7 @@ class Network():
         model_params = [self.actor.state_dict(), self.critic.state_dict()]
         torch.save(model_params, nn_model)
 
-    def compute_v(self, s_batch, a_batch, r_batch, terminal):
+    def compute_v(self, s_batch, r_batch, terminal):
         R_batch = np.zeros_like(r_batch)
 
         if terminal:

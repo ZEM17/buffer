@@ -11,6 +11,7 @@ A_DIM = 6
 TRAIN_SEQ_LEN = 100  # take as a train batch
 MODEL_SAVE_INTERVAL = 100
 VIDEO_BIT_RATE = np.array([300., 750., 1200., 1850., 2850., 4300.])  # Kbps
+BIT_RATE_PENALTY = np.array([1.02666667, 1.06666667, 1.10666667, 1.16444444, 1.25333333, 1.38222222])
 BUFFER_NORM_FACTOR = 10.0
 CHUNK_TIL_VIDEO_END_CAP = 48.0
 M_IN_K = 1000.0
@@ -107,7 +108,7 @@ class ABREnv():
             - REBUF_PENALTY * rebuf \
             - SMOOTH_PENALTY * np.abs(VIDEO_BIT_RATE[bit_rate] -
                                       VIDEO_BIT_RATE[self.last_bit_rate]) / M_IN_K \
-            - self.buffer_weight * self.buffer_size \
+            - self.buffer_weight * self.buffer_size * BIT_RATE_PENALTY[bit_rate] / 10\
             # - self.buffer_weight * self.buffer_size * (bit_rate+1)
 
         self.last_bit_rate = bit_rate
