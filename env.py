@@ -21,6 +21,7 @@ DEFAULT_QUALITY = 1  # default video quality without agent
 RANDOM_SEED = 42
 RAND_RANGE = 1000
 EPS = 1e-6
+LAMDA = 0.9
 
 class ABREnv():
 
@@ -36,7 +37,7 @@ class ABREnv():
         self.state = np.zeros((S_INFO, S_LEN))
         self.max_buffer_size = 60
         self.buffer_occupancy = 0.
-        self.buffer_weight = 1.0
+        self.buffer_weight = 0.2
 
     def seed(self, num):
         np.random.seed(num)
@@ -104,12 +105,18 @@ class ABREnv():
 
 
 
-        reward = VIDEO_BIT_RATE[bit_rate] / M_IN_K \
+        # reward = VIDEO_BIT_RATE[bit_rate] / M_IN_K \
+        #     - REBUF_PENALTY * rebuf \
+        #     - SMOOTH_PENALTY * np.abs(VIDEO_BIT_RATE[bit_rate] -
+        #                               VIDEO_BIT_RATE[self.last_bit_rate]) / M_IN_K \
+        #     - self.buffer_weight * self.buffer_size / 10\
+            # - self.buffer_weight * self.buffer_size * (bit_rate+1)
+
+        reward = LAMDA * ( VIDEO_BIT_RATE[bit_rate] / M_IN_K \
             - REBUF_PENALTY * rebuf \
             - SMOOTH_PENALTY * np.abs(VIDEO_BIT_RATE[bit_rate] -
-                                      VIDEO_BIT_RATE[self.last_bit_rate]) / M_IN_K \
-            - self.buffer_weight * self.buffer_size * BIT_RATE_PENALTY[bit_rate] / 10\
-            # - self.buffer_weight * self.buffer_size * (bit_rate+1)
+                                      VIDEO_BIT_RATE[self.last_bit_rate]) / M_IN_K ) \
+            + (1 - LAMDA) * (-1 * self.buffer_size / BUFFER_NORM_FACTOR)
 
         self.last_bit_rate = bit_rate
         state = np.roll(self.state, -1, axis=1)
