@@ -17,7 +17,7 @@ TRAIN_SEQ_LEN = 1000  # take as a train batch
 TRAIN_EPOCH = 500000
 MODEL_SAVE_INTERVAL = 500
 RANDOM_SEED = 42
-SUMMARY_DIR = './ppo_2actor_buffer'
+SUMMARY_DIR = './summary_buffer'
 MODEL_DIR = './models'
 TRAIN_TRACES = './train/'
 TEST_LOG_FOLDER = './test_results/'
@@ -98,14 +98,15 @@ def central_agent(net_params_queues, exp_queues):
             'entropy_weight': [],
             'buffer': [],
             'max_buffer': [],
+            'total_core': []
         }
-        summary_loss = {
-            'ep': [],
-            'actor_loss': [],
-            'critic_loss': [],
-        }
+        # summary_loss = {
+        #     'ep': [],
+        #     'actor_loss': [],
+        #     'critic_loss': [],
+        # }
         pd.DataFrame(summary_reward).to_csv(SUMMARY_DIR + '/summary_reward.csv', index=False)
-        pd.DataFrame(summary_loss).to_csv(SUMMARY_DIR + '/summary_loss.csv', index=False)
+        # pd.DataFrame(summary_loss).to_csv(SUMMARY_DIR + '/summary_loss.csv', index=False)
 
         # restore neural net parameters
         nn_model = NN_MODEL
@@ -147,7 +148,7 @@ def central_agent(net_params_queues, exp_queues):
                     SUMMARY_DIR + '/nn_model_ep_' + str(epoch) + '.pth', 
                     test_log_file)
 
-                print("epoch:{}, reward:{}, buffer:{}, maxbuf:{}".format(epoch, avg_reward, avg_buffer, avg_maxbuf))
+                print("epoch:{}, qoe:{}, buffer:{}, maxbuf:{}, total core:{}".format(epoch, avg_reward, avg_buffer, avg_maxbuf, avg_reward - (avg_buffer/10)))
 
                 summary_reward = {
                     'ep': [epoch],
@@ -155,7 +156,8 @@ def central_agent(net_params_queues, exp_queues):
                     'entropy': [avg_entropy],
                     'entropy_weight': [actor._entropy_weight],
                     'buffer': [avg_buffer],
-                    'max_buffer': [avg_maxbuf]
+                    'max_buffer': [avg_maxbuf],
+                    'total_core': [avg_reward - (avg_buffer/10)]
                 }
                 pd.DataFrame(summary_reward).to_csv(SUMMARY_DIR + '/summary_reward.csv', mode='a', index=False, header=False)
 
