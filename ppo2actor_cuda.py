@@ -3,6 +3,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 import torch.optim as optim
 import numpy as np
+import random
 
 FEATURE_NUM = 128
 ACTION_EPS = 1e-4
@@ -266,6 +267,56 @@ class Network():
         _g = _H - self.H_target
         self._entropy_weight -= self.lr_rate * _g * 0.1 * self.PPO_TRAINING_EPO
         self._entropy_weight = max(self._entropy_weight, 1e-2)
+
+
+    # def train(self, s_batch, a1_batch, a2_batch, p1_batch, p2_batch, v_batch, adv_batch, epoch):
+    #     s_batch = torch.from_numpy(s_batch).to(torch.float32).to(device)
+    #     a1_batch = torch.from_numpy(a1_batch).to(torch.float32).to(device)
+    #     a2_batch = torch.from_numpy(a2_batch).to(torch.float32).to(device)
+    #     p1_batch = torch.from_numpy(p1_batch).to(torch.float32).to(device)
+    #     p2_batch = torch.from_numpy(p2_batch).to(torch.float32).to(device)
+    #     v_batch = torch.from_numpy(v_batch).to(torch.float32).to(device)
+    #     adv_batch = torch.from_numpy(adv_batch).to(torch.float32).to(device)
+    #     for _ in range(self.PPO_TRAINING_EPO):
+    #         pi1 = self.actor1.forward(s_batch)
+    #         pi2 = self.actor2.forward(s_batch)
+    #         val = self.critic.forward(s_batch)
+    #         adv = adv_batch
+    #         # loss1
+    #         ratio1 = self.r(pi1, p1_batch, a1_batch)
+    #         ppo2loss1 = torch.min(ratio1 * adv, torch.clamp(ratio1, 1 - EPS, 1 + EPS) * adv)
+    #         # Dual-PPO
+    #         dual_loss1 = torch.where(adv < 0, torch.max(ppo2loss1, 3. * adv), ppo2loss1)
+    #         loss1_entropy = torch.sum(-pi1 * torch.log(pi1), dim=1, keepdim=True)
+    #         loss1 = -dual_loss1.mean() - self._entropy_weight * loss1_entropy.mean()
+    #         self.actor1.optimizer.zero_grad()
+    #         loss1.backward()
+    #         self.actor1.optimizer.step()
+    #
+    #         pi1_new = self.actor1.forward(s_batch)
+    #         update_ratio = self.r(pi1_new, p1_batch, a1_batch)
+    #         adv = adv * update_ratio
+    #
+    #         # loss2
+    #         ratio2 = self.r(pi2, p2_batch, a2_batch)
+    #         ppo2loss2 = torch.min(ratio2 * adv, torch.clamp(ratio2, 1 - EPS, 1 + EPS) * adv)
+    #         # Dual-PPO
+    #         dual_loss2 = torch.where(adv < 0, torch.max(ppo2loss2, 3. * adv), ppo2loss2)
+    #         loss2_entropy = torch.sum(-pi2 * torch.log(pi2), dim=1, keepdim=True)
+    #         loss2 = -dual_loss2.mean() - self._entropy_weight * loss2_entropy.mean()
+    #         self.actor2.optimizer.zero_grad()
+    #         loss2.backward()
+    #         self.actor2.optimizer.step()
+    #         # loss3
+    #         loss3 = F.mse_loss(val, v_batch)
+    #         self.critic.optimizer.zero_grad()
+    #         loss3.backward()
+    #         self.critic.optimizer.step()
+    #
+    #     # Update entropy weight
+    #     _H = (-(torch.log(p1_batch) * p1_batch).sum(dim=1)).mean().item()
+    #     _g = _H - self.H_target
+
     def predict(self, input):
         with torch.no_grad():
             input = torch.from_numpy(input).to(torch.float32).to(device)

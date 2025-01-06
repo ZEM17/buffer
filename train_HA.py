@@ -183,6 +183,7 @@ def agent(agent_id, net_params_queue, exp_queue):
             bit_rate = np.argmax(np.log(action1_prob) + noise)
             max_buffer_opt = np.random.choice(len(action2_prob), size=1, p=action2_prob)[0]
 
+            # todo:优化逻辑
             if(max_buffer_opt == 0 and env.max_buffer_size > 10):
                 env.max_buffer_size -= 10
             elif(max_buffer_opt == 1 and env.max_buffer_size > 5):
