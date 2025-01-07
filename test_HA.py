@@ -26,7 +26,8 @@ LOG_FILE = './test_results/log_sim_ppo'
 TEST_TRACES = './test/'
 # log in format of time_stamp bit_rate buffer_size rebuffer_time chunk_size download_time reward
 NN_MODEL = sys.argv[1]
-    
+LAMDA = 0.9
+
 def main():
 
     np.random.seed(RANDOM_SEED)
@@ -124,22 +125,26 @@ def main():
             avg_video_chunk_sizes[i] = np.mean(net_env.video_size[i])
         state[4, :A_DIM] = avg_video_chunk_sizes / M_IN_K / M_IN_K  # mega byte
         state[5, -1] = max_buffer_size
-        state[6, -1] = buffer_weight
+        state[6, -1] = 1 - LAMDA
         action1_prob, action2_prob = actor.predict(np.reshape(state, (1, S_INFO, S_LEN)))
         noise = np.random.gumbel(size=len(action1_prob))
         bit_rate = np.argmax(np.log(action1_prob) + noise)
         max_buffer_opt = np.random.choice(len(action2_prob), size=1, p=action2_prob)[0]
 
-        if max_buffer_opt == 0 and max_buffer_size > 10:
-            max_buffer_size -= 10
-        elif max_buffer_opt == 1 and max_buffer_size > 5:
-            max_buffer_size -= 5
+        if max_buffer_opt == 0:
+            if max_buffer_size > 10:
+                max_buffer_size -= 10
+        elif max_buffer_opt == 1:
+            if max_buffer_size > 5:
+                max_buffer_size -= 5
         elif max_buffer_opt == 2:
             max_buffer_size += 0
-        elif max_buffer_opt == 3 and max_buffer_size < 55:
-            max_buffer_size += 5
-        elif max_buffer_opt == 4 and max_buffer_size < 50:
-            max_buffer_size += 10
+        elif max_buffer_opt == 3:
+            if max_buffer_size < 55:
+                max_buffer_size += 5
+        elif max_buffer_opt == 4:
+            if max_buffer_size < 50:
+                max_buffer_size += 10
 
         s_batch.append(state)
         entropy_ = -np.dot(action1_prob, np.log(action1_prob))
