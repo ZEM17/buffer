@@ -54,7 +54,7 @@ class Actor2(nn.Module):
         super(Actor2, self).__init__()
         # Actor network
         self.s_dim = state_dim
-        self.a2_dim = 3
+        self.a2_dim = 5
         self.a1_dim = action_dim
         self.fc1_actor = nn.Linear(1, FEATURE_NUM)
         self.fc2_actor = nn.Linear(1, FEATURE_NUM)

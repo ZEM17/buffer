@@ -10,9 +10,9 @@ import pandas as pd
 
 S_DIM = [7, 8]
 A_DIM = 6
-A2_DIM = 3
+A2_DIM = 5
 ACTOR_LR_RATE = 1e-4
-NUM_AGENTS = 2
+NUM_AGENTS = 1
 TRAIN_SEQ_LEN = 1000  # take as a train batch
 TRAIN_EPOCH = 500000
 MODEL_SAVE_INTERVAL = 500
@@ -185,14 +185,16 @@ def agent(agent_id, net_params_queue, exp_queue):
             bit_rate = np.argmax(np.log(action1_prob) + noise)
             max_buffer_opt = np.random.choice(len(action2_prob), size=1, p=action2_prob)[0]
 
-            if max_buffer_opt == 0 and env.max_buffer_size > 5:
+            if max_buffer_opt == 0 and env.max_buffer_size > 10:
+                env.max_buffer_size -= 10
+            elif max_buffer_opt == 1 and env.max_buffer_size > 5:
                 env.max_buffer_size -= 5
-            elif max_buffer_opt == 1:
+            elif max_buffer_opt == 2:
                 env.max_buffer_size += 0
-            elif max_buffer_opt == 2 and env.max_buffer_size < 55:
+            elif max_buffer_opt == 3 and env.max_buffer_size < 55:
                 env.max_buffer_size += 5
-            elif max_buffer_opt == 2 and env.max_buffer_size > 55:
-                env.max_buffer_size = 60
+            elif max_buffer_opt == 4 and env.max_buffer_size < 50:
+                env.max_buffer_size += 10
 
             obs, rew, done, info = env.step(bit_rate)
 
