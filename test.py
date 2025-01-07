@@ -131,16 +131,20 @@ def main():
         bit_rate = np.argmax(np.log(action1_prob) + noise)
         max_buffer_opt = np.random.choice(len(action2_prob), size=1, p=action2_prob)[0]
 
-        if max_buffer_opt == 0 and max_buffer_size > 10:
-            max_buffer_size -= 10
-        elif max_buffer_opt == 1 and max_buffer_size > 5:
-            max_buffer_size -= 5
+        if max_buffer_opt == 0:
+            if max_buffer_size > 10:
+                max_buffer_size -= 10
+        elif max_buffer_opt == 1:
+            if max_buffer_size > 5:
+                max_buffer_size -= 5
         elif max_buffer_opt == 2:
             max_buffer_size += 0
-        elif max_buffer_opt == 3 and max_buffer_size < 55:
-            max_buffer_size += 5
-        elif max_buffer_opt == 4 and max_buffer_size < 50:
-            max_buffer_size += 10
+        elif max_buffer_opt == 3:
+            if max_buffer_size < 55:
+                max_buffer_size += 5
+        elif max_buffer_opt == 4:
+            if max_buffer_size < 50:
+                max_buffer_size += 10
 
         s_batch.append(state)
         entropy_ = -np.dot(action1_prob, np.log(action1_prob))

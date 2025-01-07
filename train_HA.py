@@ -185,16 +185,20 @@ def agent(agent_id, net_params_queue, exp_queue):
             bit_rate = np.argmax(np.log(action1_prob) + noise)
             max_buffer_opt = np.random.choice(len(action2_prob), size=1, p=action2_prob)[0]
 
-            if max_buffer_opt == 0 and env.max_buffer_size > 10:
-                env.max_buffer_size -= 10
-            elif max_buffer_opt == 1 and env.max_buffer_size > 5:
-                env.max_buffer_size -= 5
+            if max_buffer_opt == 0:
+                if env.max_buffer_size > 10:
+                    env.max_buffer_size -= 10
+            elif max_buffer_opt == 1:
+                if env.max_buffer_size > 5:
+                    env.max_buffer_size -= 5
             elif max_buffer_opt == 2:
                 env.max_buffer_size += 0
-            elif max_buffer_opt == 3 and env.max_buffer_size < 55:
-                env.max_buffer_size += 5
-            elif max_buffer_opt == 4 and env.max_buffer_size < 50:
-                env.max_buffer_size += 10
+            elif max_buffer_opt == 3:
+                if env.max_buffer_size < 55:
+                    env.max_buffer_size += 5
+            elif max_buffer_opt == 4:
+                if env.max_buffer_size < 50:
+                    env.max_buffer_size += 10
 
             obs, rew, done, info = env.step(bit_rate)
 
