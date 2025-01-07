@@ -54,7 +54,7 @@ class Actor2(nn.Module):
         super(Actor2, self).__init__()
         # Actor network
         self.s_dim = state_dim
-        self.a2_dim = 5
+        self.a2_dim = 3
         self.a1_dim = action_dim
         self.fc1_actor = nn.Linear(1, FEATURE_NUM)
         self.fc2_actor = nn.Linear(1, FEATURE_NUM)
@@ -68,6 +68,25 @@ class Actor2(nn.Module):
 
         self.optimizer = optim.Adam(list(self.parameters()), lr=learning_rate)
 
+    # def forward(self, inputs):
+    #     split_1 = F.relu(self.fc1_actor(inputs[:, 0:1, -1]))
+    #     split_2 = F.relu(self.fc2_actor(inputs[:, 1:2, -1]))
+    #     split_3 = F.relu(self.conv3_actor(inputs[:, 2:3, :])).view(inputs.shape[0], -1)
+    #     split_4 = F.relu(self.conv4_actor(inputs[:, 3:4, :]).view(inputs.shape[0], -1))
+    #     split_5 = F.relu(self.conv5_actor(inputs[:, 4:5, :self.a1_dim]).view(inputs.shape[0], -1))
+    #     split_6 = F.relu(self.fc6_actor(inputs[:, 5:6, -1]))
+    #     split_7 = F.relu(self.fc6_actor(inputs[:, 6:7, -1]))
+    #
+    #     merge_net = torch.cat([split_1, split_2, split_3, split_4, split_5, split_6, split_7], 1)
+    #
+    #     a2 = self.max_buffer_action(merge_net)
+    #     a2 = F.softmax(self.max_buffer_pi_head(a2), dim=-1)
+    #     a2 = torch.clamp(a2, ACTION_EPS, 1. - ACTION_EPS)
+    #     return a2
+
+
+
+    # action mask版本 action 3
     def forward(self, inputs):
         split_1 = F.relu(self.fc1_actor(inputs[:, 0:1, -1]))
         split_2 = F.relu(self.fc2_actor(inputs[:, 1:2, -1]))
@@ -80,9 +99,38 @@ class Actor2(nn.Module):
         merge_net = torch.cat([split_1, split_2, split_3, split_4, split_5, split_6, split_7], 1)
 
         a2 = self.max_buffer_action(merge_net)
-        a2 = F.softmax(self.max_buffer_pi_head(a2), dim=-1)
+        a2 = self.max_buffer_pi_head(a2)
+
+        shape = inputs[:, 5:6, -1].shape[0]
+        # sampling
+        if shape == 1:
+            max_buffer = inputs[:, 5:6, -1][0][0]
+            if max_buffer <= 5:
+                action_mask = torch.tensor([0., 1., 1.]).type(torch.BoolTensor).to(device)
+                a2 = torch.where(action_mask, a2, torch.tensor(-1e8))
+            elif max_buffer > 55:
+                action_mask = torch.tensor([1., 1., 0.]).type(torch.BoolTensor).to(device)
+                a2 = torch.where(action_mask, a2, torch.tensor(-1e8))
+        # trainning
+        else:
+            action_masks = []
+            for i in range(shape):
+                max_buffer = inputs[:, 5:6, -1][i][0]
+                if max_buffer <= 5:
+                    action_mask = torch.tensor([0., 1., 1.]).type(torch.BoolTensor).to(device)
+                elif max_buffer > 55:
+                    action_mask = torch.tensor([1., 1., 0.]).type(torch.BoolTensor).to(device)
+                else:
+                    action_mask = torch.tensor([1., 1., 1.]).type(torch.BoolTensor).to(device)
+                action_masks.append(action_mask)
+            action_masks = torch.stack(action_masks, dim=0)
+            a2 = torch.where(action_masks, a2, torch.tensor(-1e8))
+        a2 = F.softmax(a2, dim=-1)
         a2 = torch.clamp(a2, ACTION_EPS, 1. - ACTION_EPS)
         return a2
+
+
+
 
 class Critic(nn.Module):
     def __init__(self, state_dim, action_dim, learning_rate):
