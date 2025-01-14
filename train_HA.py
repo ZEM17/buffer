@@ -10,14 +10,14 @@ import pandas as pd
 
 S_DIM = [7, 8]
 A_DIM = 6
-A2_DIM = 3
+A2_DIM = 5
 ACTOR_LR_RATE = 1e-4
 NUM_AGENTS = 1
 TRAIN_SEQ_LEN = 1000  # take as a train batch
-TRAIN_EPOCH = 100000
+TRAIN_EPOCH = 50000
 MODEL_SAVE_INTERVAL = 500
 RANDOM_SEED = 42
-SUMMARY_DIR = './summary_lamda0.8'
+SUMMARY_DIR = './summary_lamda0.6'
 MODEL_DIR = './models'
 TRAIN_TRACES = './train/'
 TEST_LOG_FOLDER = './test_results/'
@@ -188,30 +188,30 @@ def agent(agent_id, net_params_queue, exp_queue):
 
             # 记得改 A2_DIM和 网络的a2_dim
             # action 5
-            # if max_buffer_opt == 0:
-            #     if env.max_buffer_size > 10:
-            #         env.max_buffer_size -= 10
-            # elif max_buffer_opt == 1:
-            #     if env.max_buffer_size > 5:
-            #         env.max_buffer_size -= 5
-            # elif max_buffer_opt == 2:
-            #     env.max_buffer_size += 0
-            # elif max_buffer_opt == 3:
-            #     if env.max_buffer_size < 55:
-            #         env.max_buffer_size += 5
-            # elif max_buffer_opt == 4:
-            #     if env.max_buffer_size < 50:
-            #         env.max_buffer_size += 10
-
-            # action 3
             if max_buffer_opt == 0:
+                if env.max_buffer_size > 10:
+                    env.max_buffer_size -= 10
+            elif max_buffer_opt == 1:
                 if env.max_buffer_size > 5:
                     env.max_buffer_size -= 5
-            elif max_buffer_opt == 1:
-                env.max_buffer_size += 0
             elif max_buffer_opt == 2:
-                if env.max_buffer_size < 60:
+                env.max_buffer_size += 0
+            elif max_buffer_opt == 3:
+                if env.max_buffer_size < 55:
                     env.max_buffer_size += 5
+            elif max_buffer_opt == 4:
+                if env.max_buffer_size < 50:
+                    env.max_buffer_size += 10
+
+            # action 3
+            # if max_buffer_opt == 0:
+            #     if env.max_buffer_size > 5:
+            #         env.max_buffer_size -= 5
+            # elif max_buffer_opt == 1:
+            #     env.max_buffer_size += 0
+            # elif max_buffer_opt == 2:
+            #     if env.max_buffer_size < 60:
+            #         env.max_buffer_size += 5
 
 
             obs, rew, done, info = env.step(bit_rate)

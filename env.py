@@ -21,7 +21,7 @@ DEFAULT_QUALITY = 1  # default video quality without agent
 RANDOM_SEED = 42
 RAND_RANGE = 1000
 EPS = 1e-6
-LAMDA = 0.8
+LAMDA = 0.6
 
 class ABREnv():
 
