@@ -1,4 +1,6 @@
 manual_test_summary/
 test/
+test_results/
 *.csv
 *.pth
+*.pyc
