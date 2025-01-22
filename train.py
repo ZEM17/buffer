@@ -2,7 +2,7 @@ import multiprocessing as mp
 import numpy as np
 import os
 from env import ABREnv
-import ppo2_cuda as network
+import ppo2 as network
 import torch
 import pandas as pd
 
@@ -12,12 +12,12 @@ S_DIM = [7, 8]
 A_DIM = 6
 A2_DIM = 5
 ACTOR_LR_RATE = 1e-4
-NUM_AGENTS = 2
+NUM_AGENTS = 1
 TRAIN_SEQ_LEN = 1000  # take as a train batch
-TRAIN_EPOCH = 500000
+TRAIN_EPOCH = 50000
 MODEL_SAVE_INTERVAL = 500
 RANDOM_SEED = 42
-SUMMARY_DIR = './ppo_buffer'
+SUMMARY_DIR = './summary_0.9'
 MODEL_DIR = './models'
 TRAIN_TRACES = './train/'
 TEST_LOG_FOLDER = './test_results/'
@@ -31,8 +31,9 @@ NN_MODEL = None
 
 def testing(epoch, nn_model, log_file):
     # clean up the test results folder
-    # os.system('rm -r ' + TEST_LOG_FOLDER)
-    #os.system('mkdir ' + TEST_LOG_FOLDER)
+    if os.name == 'posix':
+        os.system('rm -r ' + TEST_LOG_FOLDER)
+        os.system('mkdir ' + TEST_LOG_FOLDER)
 
     if not os.path.exists(TEST_LOG_FOLDER):
         os.makedirs(TEST_LOG_FOLDER)
@@ -96,17 +97,12 @@ def central_agent(net_params_queues, exp_queues):
             'reward': [],
             'entropy': [],
             'entropy_weight': [],
-            'buffer':[],
+            'buffer': [],
             'max_buffer': [],
-        }
-        summary_loss = {
-            'ep': [],
-            'actor_loss': [],
-            'critic_loss': [],
+            'total_core': []
         }
         pd.DataFrame(summary_reward).to_csv(SUMMARY_DIR + '/summary_reward.csv', index=False)
-        pd.DataFrame(summary_loss).to_csv(SUMMARY_DIR + '/summary_loss.csv', index=False)
-
+        
         # restore neural net parameters
         nn_model = NN_MODEL
         if nn_model is not None:  # nn_model is the path to file
@@ -120,23 +116,24 @@ def central_agent(net_params_queues, exp_queues):
             for i in range(NUM_AGENTS):
                 net_params_queues[i].put(actor_net_params)
 
-            s, a1, a2, p1, p2, r = [], [], [], [], [], []
+            s, a1, a2, p1, p2, r, adv = [], [], [], [], [], [], []
             for i in range(NUM_AGENTS):
-                s_, a1_, a2_, p1_, p2_, r_ = exp_queues[i].get()
+                s_, a1_, a2_, p1_, p2_, r_, adv_ = exp_queues[i].get()
                 s += s_
                 a1 += a1_
                 a2 += a2_
                 p1 += p1_
                 p2 += p2_
                 r += r_
+                adv += adv_
             s_batch = np.stack(s, axis=0)
             a1_batch = np.vstack(a1)
             a2_batch = np.vstack(a2)
             p1_batch = np.vstack(p1)
             p2_batch = np.vstack(p2)
             v_batch = np.vstack(r)
-
-            actor.train(s_batch, a1_batch, a2_batch, p1_batch, p2_batch, v_batch, epoch)
+            adv_batch = np.vstack(adv)
+            actor.train(s_batch, a1_batch, a2_batch, p1_batch, p2_batch, v_batch, adv_batch, epoch)
             
             if epoch % MODEL_SAVE_INTERVAL == 0:
                 # Save the neural net parameters to disk.
@@ -146,7 +143,7 @@ def central_agent(net_params_queues, exp_queues):
                     SUMMARY_DIR + '/nn_model_ep_' + str(epoch) + '.pth', 
                     test_log_file)
 
-                print("epoch:{}, reward:{}, buffer:{}, maxbuf:{}".format(epoch, avg_reward, avg_buffer, avg_maxbuf))
+                print("epoch:{}, qoe:{}, buffer:{}, maxbuf:{}, core:{}".format(epoch, avg_reward, avg_buffer, avg_maxbuf, avg_reward - (avg_buffer/10)))
 
                 summary_reward = {
                     'ep': [epoch],
@@ -154,7 +151,8 @@ def central_agent(net_params_queues, exp_queues):
                     'entropy': [avg_entropy],
                     'entropy_weight': [actor._entropy_weight],
                     'buffer': [avg_buffer],
-                    'max_buffer': [avg_maxbuf]
+                    'max_buffer': [avg_maxbuf],
+                    'core': [avg_reward - (avg_buffer/10)]
                 }
                 pd.DataFrame(summary_reward).to_csv(SUMMARY_DIR + '/summary_reward.csv', mode='a', index=False, header=False)
 
@@ -182,18 +180,7 @@ def agent(agent_id, net_params_queue, exp_queue):
             bit_rate = np.argmax(np.log(action1_prob) + noise)
             max_buffer_opt = np.random.choice(len(action2_prob), size=1, p=action2_prob)[0]
 
-            if(max_buffer_opt == 0 and env.max_buffer_size > 10):
-                env.max_buffer_size -= 10
-            elif(max_buffer_opt == 1 and env.max_buffer_size > 5):
-                env.max_buffer_size -= 5
-            elif(max_buffer_opt == 2):
-                env.max_buffer_size += 0
-            elif(max_buffer_opt == 3 and env.max_buffer_size < 55):
-                env.max_buffer_size += 5
-            elif(max_buffer_opt == 4 and env.max_buffer_size < 50):
-                env.max_buffer_size += 10
-
-            obs, rew, done, info = env.step(bit_rate)
+            obs, rew, done, info = env.step(bit_rate, max_buffer_opt)
 
             action_vec = np.zeros(A_DIM)
             action_vec[bit_rate] = 1
@@ -209,7 +196,8 @@ def agent(agent_id, net_params_queue, exp_queue):
             if done:
                 break
         v_batch = actor.compute_v(s_batch, r_batch, done)
-        exp_queue.put([s_batch, a1_batch, a2_batch, p1_batch, p2_batch, v_batch])
+        gae_batch = actor.compute_gae(r_batch, s_batch)
+        exp_queue.put([s_batch, a1_batch, a2_batch, p1_batch, p2_batch, v_batch, gae_batch])
 
         actor_net_params = net_params_queue.get()
         actor.set_network_params(actor_net_params)

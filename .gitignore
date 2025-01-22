@@ -1,3 +1,4 @@
 manual_test_summary/
+test/
 *.csv
 *.pth
