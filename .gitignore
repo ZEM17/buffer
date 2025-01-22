@@ -4,3 +4,4 @@ test_results/
 *.csv
 *.pth
 *.pyc
+*.txt
