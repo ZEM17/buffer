@@ -4,7 +4,7 @@ import sys
 import numpy as np
 import load_trace
 # import ppo2_cuda as network
-import ppo2actor_cuda as network
+import ppo2_2actor as network
 import fixed_env as env
 import pandas as pd
 
@@ -27,7 +27,7 @@ RAND_RANGE = 1000
 LOG_FILE = './test_results/log_sim_ppo'
 TEST_TRACES = './test/'
 # log in format of time_stamp bit_rate buffer_size rebuffer_time chunk_size download_time reward
-NN_MODEL = './pretrain/nn_model_ep_148500_0.6lamda.pth'
+NN_MODEL = './pretrain/nn_model_ep_98500.pth'
 LAMDA = 0.6
 SUMMARY_DIR = './manual_test_summary/'
 
@@ -71,7 +71,7 @@ def main():
     entropy_ = 0.5
     video_count = 0
 
-    max_buffer_size = 60
+    max_buffer_size = 30
     max_buffer_opt = 0
 
     first_step = True
@@ -162,15 +162,20 @@ def main():
         #     if max_buffer_size < 50:
         #         max_buffer_size += 10
 
-        # action 3
         if max_buffer_opt == 0:
+            if max_buffer_size > 10:
+                max_buffer_size -= 10
+        elif max_buffer_opt == 1:
             if max_buffer_size > 5:
                 max_buffer_size -= 5
-        elif max_buffer_opt == 1:
-            max_buffer_size += 0
         elif max_buffer_opt == 2:
-            if max_buffer_size < 60:
+            max_buffer_size += 0
+        elif max_buffer_opt == 3:
+            if max_buffer_size < 55:
                 max_buffer_size += 5
+        elif max_buffer_opt == 4:
+            if max_buffer_size < 50:
+                max_buffer_size += 10
 
         s_batch.append(state)
         entropy_ = -np.dot(action1_prob, np.log(action1_prob))

@@ -3,8 +3,8 @@ import sys
 # os.environ['CUDA_VISIBLE_DEVICES']='-1'
 import numpy as np
 import load_trace
-import ppo2_cuda as network
-# import ppo2actor_cuda as network
+import ppo2 as network
+# import ppo2actor as network
 import fixed_env as env
 
 
@@ -26,7 +26,6 @@ LOG_FILE = './test_results/log_sim_ppo'
 TEST_TRACES = './test/'
 # log in format of time_stamp bit_rate buffer_size rebuffer_time chunk_size download_time reward
 NN_MODEL = sys.argv[1]
-LAMDA = 0.9
 
 def main():
 
@@ -66,7 +65,7 @@ def main():
     entropy_ = 0.5
     video_count = 0
 
-    buffer_weight = 1
+    buffer_weight = 0.1
     max_buffer_size = 60
     buffer_occupancy = 0.
     
@@ -125,7 +124,7 @@ def main():
             avg_video_chunk_sizes[i] = np.mean(net_env.video_size[i])
         state[4, :A_DIM] = avg_video_chunk_sizes / M_IN_K / M_IN_K  # mega byte
         state[5, -1] = max_buffer_size
-        state[6, -1] = 1 - LAMDA
+        state[6, -1] = buffer_weight
         action1_prob, action2_prob = actor.predict(np.reshape(state, (1, S_INFO, S_LEN)))
         noise = np.random.gumbel(size=len(action1_prob))
         bit_rate = np.argmax(np.log(action1_prob) + noise)
