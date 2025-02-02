@@ -3,7 +3,7 @@ import sys
 # os.environ['CUDA_VISIBLE_DEVICES']='-1'
 import numpy as np
 import load_trace
-import ppo2 as network
+import algorithm.ppo2 as network
 # import ppo2actor as network
 import fixed_env as env
 

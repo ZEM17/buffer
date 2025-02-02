@@ -2,7 +2,7 @@ import multiprocessing as mp
 import numpy as np
 import os
 from env import ABREnv
-import ppo2 as network
+import algorithm.ppo2 as network
 import torch
 import pandas as pd
 
