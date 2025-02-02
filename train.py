@@ -17,7 +17,7 @@ TRAIN_SEQ_LEN = 1000  # take as a train batch
 TRAIN_EPOCH = 50000
 MODEL_SAVE_INTERVAL = 500
 RANDOM_SEED = 42
-SUMMARY_DIR = './summary_0.9'
+SUMMARY_DIR = './summary'
 MODEL_DIR = './models'
 TRAIN_TRACES = './train/'
 TEST_LOG_FOLDER = './test_results/'
@@ -41,26 +41,26 @@ def testing(epoch, nn_model, log_file):
     os.system('python test.py ' + nn_model)
 
     # append test performance to the log
-    rewards, entropies, buffers, max_buffers, buffer_occupancys = [], [], [], [], []
+    rewards, entropies, buffers, max_buffers,datas = [], [], [], [], []
     test_log_files = os.listdir(TEST_LOG_FOLDER)
     for test_log_file in test_log_files:
-        reward, entropy, buffer, max_buffer, buffer_occupancy = [], [], [], [], []
+        reward, entropy, buffer, max_buffer, data = [], [], [], [], []
         with open(TEST_LOG_FOLDER + test_log_file, 'rb') as f:
             for line in f:
                 parse = line.split()
                 try:
-                    buffer_occupancy.append(float(parse[-3]))
-                    max_buffer.append(float(parse[-4]))
+                    max_buffer.append(float(parse[7]))
                     buffer.append(float(parse[2]))
                     entropy.append(float(parse[-2]))
                     reward.append(float(parse[-1]))
+                    data.append(float(parse[3]))
                 except IndexError:
                     break
         rewards.append(np.mean(reward[1:]))
         entropies.append(np.mean(entropy[1:]))
         buffers.append(np.mean(buffer[1:]))
         max_buffers.append(np.mean(max_buffer[1:]))
-        buffer_occupancys.append(np.mean(buffer_occupancy[1:]))
+        datas.append(np.mean(data[1:]))
 
     rewards = np.array(rewards)
 
@@ -80,7 +80,7 @@ def testing(epoch, nn_model, log_file):
                    str(rewards_max) + '\n')
     log_file.flush()
 
-    return rewards_mean, np.mean(entropies), np.mean(buffers), np.mean(max_buffers), np.mean(buffer_occupancys)
+    return rewards_mean, np.mean(entropies), np.mean(buffers), np.mean(max_buffers), np.mean(datas)
         
 def central_agent(net_params_queues, exp_queues):
 
@@ -98,6 +98,7 @@ def central_agent(net_params_queues, exp_queues):
             'entropy': [],
             'entropy_weight': [],
             'buffer': [],
+            'data': [],
             'max_buffer': [],
             'total_core': []
         }
@@ -139,11 +140,11 @@ def central_agent(net_params_queues, exp_queues):
                 # Save the neural net parameters to disk.
                 actor.save_model(SUMMARY_DIR + '/nn_model_ep_' + str(epoch) + '.pth')
                 
-                avg_reward, avg_entropy, avg_buffer, avg_maxbuf, avg_buff_occupy= testing(epoch,
+                avg_reward, avg_entropy, avg_buffer, avg_maxbuf, avg_data= testing(epoch,
                     SUMMARY_DIR + '/nn_model_ep_' + str(epoch) + '.pth', 
                     test_log_file)
 
-                print("epoch:{}, qoe:{}, buffer:{}, maxbuf:{}, core:{}".format(epoch, avg_reward, avg_buffer, avg_maxbuf, avg_reward - (avg_buffer/10)))
+                print("epoch:{}, qoe:{}, buffer:{}, data:{}, maxbuf:{}, core:{}".format(epoch, avg_reward, avg_buffer, avg_data, avg_maxbuf, avg_reward - avg_data))
 
                 summary_reward = {
                     'ep': [epoch],
@@ -151,8 +152,9 @@ def central_agent(net_params_queues, exp_queues):
                     'entropy': [avg_entropy],
                     'entropy_weight': [actor._entropy_weight],
                     'buffer': [avg_buffer],
+                    'data': [avg_data],
                     'max_buffer': [avg_maxbuf],
-                    'core': [avg_reward - (avg_buffer/10)]
+                    'core': [avg_reward - avg_data]
                 }
                 pd.DataFrame(summary_reward).to_csv(SUMMARY_DIR + '/summary_reward.csv', mode='a', index=False, header=False)
 
@@ -205,6 +207,7 @@ def agent(agent_id, net_params_queue, exp_queue):
 def main():
     mp.set_start_method('spawn')
     np.random.seed(RANDOM_SEED)
+    torch.manual_seed(RANDOM_SEED)
     torch.set_num_threads(1)
     # inter-process communication queues
     net_params_queues = []

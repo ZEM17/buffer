@@ -179,6 +179,9 @@ class Network():
         self.actor2 = Actor2(state_dim, action_dim, learning_rate).to(device)
         self.critic = Critic(state_dim, action_dim, learning_rate).to(device)
         self.lr_rate = learning_rate
+        self.optimizer = optim.Adam(list(self.actor1.parameters()) + \
+                                    list(self.actor2.parameters()) + \
+                                    list(self.critic.parameters()), lr=learning_rate)
 
     def get_network_params(self):
         return [self.actor1.state_dict(), self.actor2.state_dict(), self.critic.state_dict()]
@@ -309,6 +312,35 @@ class Network():
             self.critic.optimizer.zero_grad()
             loss3.backward()
             self.critic.optimizer.step()
+
+        for i in range(3):
+            pi1 = self.actor1.forward(s_batch)
+            pi2 = self.actor2.forward(s_batch)
+            val = self.critic.forward(s_batch)
+    
+            adv = adv_batch
+            # loss1
+            ratio1 = self.r(pi1, p1_batch, a1_batch)
+            ppo2loss1 = torch.min(ratio1 * adv, torch.clamp(ratio1, 1 - EPS, 1 + EPS) * adv)
+            # Dual-PPO
+            # dual_loss1 = torch.where(adv < 0, torch.max(ppo2loss1, 3. * adv), ppo2loss1)
+            loss1_entropy = torch.sum(-pi1 * torch.log(pi1), dim=1, keepdim=True)
+            loss1 = -ppo2loss1.mean()  - self._entropy_weight * loss1_entropy.mean()
+    
+            # loss2
+            ratio2 = self.r(pi2, p2_batch, a2_batch)
+            ppo2loss2 = torch.min(ratio2 * adv, torch.clamp(ratio2, 1 - EPS, 1 + EPS) * adv)
+            # Dual-PPO
+            # dual_loss2 = torch.where(adv < 0, torch.max(ppo2loss2, 3. * adv), ppo2loss2)
+            loss2_entropy = torch.sum(-pi2 * torch.log(pi2), dim=1, keepdim=True)
+            loss2 = -ppo2loss2.mean()  - self._entropy_weight * loss2_entropy.mean()
+
+            # loss3
+            loss3 = F.mse_loss(val, v_batch)
+            loss = loss1 + loss2 + loss3
+            self.optimizer.zero_grad()
+            loss.backward()
+            self.optimizer.step()
 
         # Update entropy weight
         _H = (-(torch.log(p1_batch) * p1_batch).sum(dim=1)).mean().item()

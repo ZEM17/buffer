@@ -66,17 +66,15 @@ def main():
     video_count = 0
 
     buffer_weight = 0.1
-    max_buffer_size = 60
-    buffer_occupancy = 0.
+    max_buffer_size = 30
     
     while True:  # serve video forever
         # the action is from the last decision
         # this is to make the framework similar to the real
         delay, sleep_time, buffer_size, rebuf, \
         video_chunk_size, next_video_chunk_sizes, \
-        end_of_video, video_chunk_remain, throughput = \
+        end_of_video, video_chunk_remain, throughput, data_size= \
             net_env.get_video_chunk(bit_rate, max_buffer_size)
-        buffer_occupancy = buffer_size / max_buffer_size
         time_stamp += delay  # in ms
         time_stamp += sleep_time  # in ms
 
@@ -94,11 +92,11 @@ def main():
         log_file.write(str(time_stamp / M_IN_K) + '\t' +
                         str(VIDEO_BIT_RATE[bit_rate]) + '\t' +
                         str(buffer_size) + '\t' +
+                        str(data_size) + '\t' +
                         str(rebuf) + '\t' +
                         str(video_chunk_size) + '\t' +
                         str(delay) + '\t' +
                         str(max_buffer_size) + '\t' +
-                        str(buffer_occupancy) + '\t' +
                         str(entropy_) + '\t' + 
                         str(reward) + '\n')
         log_file.flush()
