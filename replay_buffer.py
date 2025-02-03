@@ -7,8 +7,7 @@ class ReplayBuffer:
         
         # 初始化存储容器
         self.states = np.zeros((buffer_size, 7, 8), dtype=np.float32)  #状态 (7,8）
-        self.actions_1 = np.zeros(buffer_size, dtype=np.int32)  # 动作1（6种情况）
-        self.actions_2 = np.zeros(buffer_size, dtype=np.int32)  # 动作2（5种情况）
+        self.actions = np.zeros(buffer_size, dtype=np.int32)
         self.rewards = np.zeros(buffer_size, dtype=np.float32)
         self.next_states = np.zeros((buffer_size, 7, 8), dtype=np.float32)
         self.dones = np.zeros(buffer_size, dtype=bool)
@@ -17,13 +16,10 @@ class ReplayBuffer:
         self.current_size = 0
 
     def add(self, state, action, reward, next_state, done):
-        # 分解动作
-        action_1, action_2 = action
         
         # 存储经验
         self.states[self.current_idx] = state
-        self.actions_1[self.current_idx] = action_1
-        self.actions_2[self.current_idx] = action_2
+        self.actions[self.current_idx] = action
         self.rewards[self.current_idx] = reward
         self.next_states[self.current_idx] = next_state
         self.dones[self.current_idx] = done
@@ -36,15 +32,9 @@ class ReplayBuffer:
         # 随机抽样索引
         indices = np.random.choice(self.current_size, batch_size, replace=False)
         
-        # 组合动作
-        actions = np.stack([
-            self.actions_1[indices],
-            self.actions_2[indices]
-        ], axis=1)
-        
         return (
             self.states[indices],
-            actions,
+            self.actions[indices],
             self.rewards[indices],
             self.next_states[indices],
             self.dones[indices]

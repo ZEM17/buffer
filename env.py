@@ -161,3 +161,9 @@ class ABREnv():
         self.state = state
         #observation, reward, done, info = env.step(action)
         return state, reward, end_of_video, {'bitrate': VIDEO_BIT_RATE[bit_rate], 'rebuffer': rebuf}
+    def hibrid_action(self, action):
+        if not (0 <= action < 30):
+            raise ValueError("action3_num must be between 0 and 29 inclusive.")
+        action1 = action % 6       # 计算 action1：取模运算
+        action2 = action // 6      # 计算 action2：整除运算
+        return action1, action2
