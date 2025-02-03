@@ -10,6 +10,7 @@ ALPHA = 0.2
 GAMMA = 0.99
 S_DIM = [7, 8]
 
+
 class SoftQNetwork(nn.Module):
     def __init__(self, action_dim):
         super().__init__()

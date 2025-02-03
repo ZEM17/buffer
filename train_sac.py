@@ -8,11 +8,13 @@ from env import ABREnv
 S_DIM = [7, 8]
 A_DIM = (6, 5)
 RANDOM_SEED = 17
-BUFFER_SIZE = int(1e5)
+BUFFER_SIZE = int(1e6)
 LR = 3e-4
 TOTAL_STEPS = int(1e8)
 START_STEPS = int(1e3)
 UPDATE_FREQUENCY = 4
+TARGET_UPDATE_FREQUENCY = 5000
+TAU = 1.0  # target smoothing coefficient
 BATCH_SIZE = 64
 LOG_INTERVAL = 500
 
@@ -50,6 +52,12 @@ for step in range(TOTAL_STEPS):
         if step % UPDATE_FREQUENCY == 0:
             batch = buffer.sample(BATCH_SIZE)
             agent.train(batch)
+    if step % UPDATE_FREQUENCY == 0:
+        for param, target_param in zip(agent.qf1.parameters(), agent.qf1_target.parameters()):
+            target_param.data.copy_(TAU * param.data + (1 - TAU) * target_param.data)
+        for param, target_param in zip(agent.qf2.parameters(), agent.qf2_target.parameters()):
+            target_param.data.copy_(TAU * param.data + (1 - TAU) * target_param.data)
+    
     if step % LOG_INTERVAL == 0:
         print(f"Step: {step} | "
               f"Avg Reward: {episode_reward/episode_length if episode_length else 0:.6f}")
