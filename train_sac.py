@@ -1,4 +1,5 @@
 import numpy as np
+import pandas as pd
 import torch
 import random
 from algorithm.sac import SAC
@@ -61,3 +62,11 @@ for step in range(TOTAL_STEPS):
     if step % LOG_INTERVAL == 0:
         print(f"Step: {step} | "
               f"Avg Reward: {episode_reward/episode_length if episode_length else 0:.6f}")
+        data = {
+            "Step": [step],
+            "Avg Reward": [episode_reward/episode_length if episode_length else 0]
+        }
+        df = pd.DataFrame(data)
+
+        # 将数据追加到 CSV 文件
+        df.to_csv('output.csv', mode='a', header=not pd.io.common.file_exists('output.csv'), index=False)

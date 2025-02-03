@@ -80,7 +80,7 @@ class Actor(nn.Module):
     def get_action(self, x):
         if not isinstance(x, torch.Tensor):
             x = np.reshape(x,(1, S_DIM[0], S_DIM[1]))
-            x = torch.from_numpy(x).to(torch.float32)
+            x = torch.from_numpy(x).to(torch.float32).to(device)
         logits = self.forward(x)
         # 创建分类分布并采样
         dist = torch.distributions.Categorical(logits=logits)
