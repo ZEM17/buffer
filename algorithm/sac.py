@@ -5,9 +5,10 @@ import torch.optim as optim
 import numpy as np
 
 device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
-FEATURE_NUM = 128
+FEATURE_NUM = 256
 ALPHA = 0.2
 GAMMA = 0.99
+TARGET_ENTROPY_SCALE = 0.89
 S_DIM = [7, 8]
 
 
@@ -24,7 +25,7 @@ class SoftQNetwork(nn.Module):
         self.fc7_actor = nn.Linear(1, FEATURE_NUM)
  
         self.fc_q = nn.Sequential(
-            nn.Linear(3328, FEATURE_NUM),
+            nn.Linear(6656, FEATURE_NUM),
             nn.Linear(FEATURE_NUM, self.a1_dim * self.a2_dim)
         )
 
@@ -57,7 +58,7 @@ class Actor(nn.Module):
         self.fc7_actor = nn.Linear(1, FEATURE_NUM)
  
         self.fc_logits = nn.Sequential(
-            nn.Linear(3328, FEATURE_NUM),
+            nn.Linear(6656, FEATURE_NUM),
             nn.Linear(FEATURE_NUM, self.a1_dim * self.a2_dim)
         )
 
@@ -107,6 +108,10 @@ class SAC():
         self.q_optimizer = optim.Adam(list(self.qf1.parameters()) + list(self.qf2.parameters()), lr=lr, eps=1e-4)
         self.actor_optimizer = optim.Adam(list(self.actor.parameters()), lr=lr, eps=1e-4)
         self.alpha = ALPHA
+        self.target_entropy = TARGET_ENTROPY_SCALE * torch.log(1 / torch.tensor(action_dim[0] * action_dim[1]).to(device))
+        self.log_alpha = torch.zeros(1, requires_grad=True, device=device)
+        self.alpha = self.log_alpha.exp().item()
+        self.a_optimizer = optim.Adam([self.log_alpha], lr=lr, eps=1e-4)
 
     def cac_target(self, rewards, next_states, dones):
         with torch.no_grad():
@@ -157,3 +162,38 @@ class SAC():
         self.actor_optimizer.zero_grad()
         actor_loss.backward()
         self.actor_optimizer.step()
+
+        alpha_loss = (action_probs.detach() * (-self.log_alpha.exp() * (log_pi + self.target_entropy).detach())).mean()
+        self.a_optimizer.zero_grad()
+        alpha_loss.backward()
+        self.a_optimizer.step()
+        self.alpha = self.log_alpha.exp().item()
+
+    def save_model(self, path):
+        torch.save({
+            'actor_state_dict': self.actor.state_dict(),
+            'qf1_state_dict': self.qf1.state_dict(),
+            'qf2_state_dict': self.qf2.state_dict(),
+            'qf1_target_state_dict': self.qf1_target.state_dict(),
+            'qf2_target_state_dict': self.qf2_target.state_dict(),
+            'q_optimizer_state_dict': self.q_optimizer.state_dict(),
+            'actor_optimizer_state_dict': self.actor_optimizer.state_dict(),
+            'a_optimizer_state_dict': self.a_optimizer.state_dict(),
+            'log_alpha': self.log_alpha
+        }, path)
+        # print(f"Model saved to {path}")
+
+    def load_model(self, path):
+        checkpoint = torch.load(path, map_location=device, weights_only=True)
+        self.actor.load_state_dict(checkpoint['actor_state_dict'])
+        self.qf1.load_state_dict(checkpoint['qf1_state_dict'])
+        self.qf2.load_state_dict(checkpoint['qf2_state_dict'])
+        self.qf1_target.load_state_dict(checkpoint['qf1_target_state_dict'])
+        self.qf2_target.load_state_dict(checkpoint['qf2_target_state_dict'])
+        self.q_optimizer.load_state_dict(checkpoint['q_optimizer_state_dict'])
+        self.actor_optimizer.load_state_dict(checkpoint['actor_optimizer_state_dict'])
+        self.a_optimizer.load_state_dict(checkpoint['a_optimizer_state_dict'])
+        self.log_alpha = checkpoint['log_alpha'].to(device)
+        self.log_alpha.requires_grad_(True)  # 确保梯度跟踪
+        self.alpha = self.log_alpha.exp().item()
+        # print(f"Model loaded from {path}")
