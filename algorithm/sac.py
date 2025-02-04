@@ -6,7 +6,7 @@ import numpy as np
 
 device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
 FEATURE_NUM = 256
-ALPHA = 0.6
+ALPHA = 0.5
 GAMMA = 0.99
 TARGET_ENTROPY_SCALE = 1
 S_DIM = [7, 8]

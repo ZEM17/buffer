@@ -24,7 +24,7 @@ BUFFER_WEIGH = 0.1
 LOG_FILE = './test_results/log_sim_sac'
 TEST_PATH = './test_results/'
 # NN_MODEL = sys.argv[1]
-NN_MODEL = 16000
+NN_MODEL = 140000
 TEST_TRACES = './test/'
 SAVE_PATH = "./sac_model/"
 
