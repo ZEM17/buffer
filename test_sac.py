@@ -24,7 +24,7 @@ BUFFER_WEIGH = 0.1
 LOG_FILE = './test_results/log_sim_sac'
 TEST_PATH = './test_results/'
 # NN_MODEL = sys.argv[1]
-NN_MODEL = 12500
+NN_MODEL = 16000
 TEST_TRACES = './test/'
 SAVE_PATH = "./sac_model/"
 
@@ -151,6 +151,7 @@ def main():
 
             last_bit_rate = DEFAULT_QUALITY
             bit_rate = DEFAULT_QUALITY  # use the default action here
+            max_buffer_size = 30
 
             reward_per_trace.append(np.mean(r_batch[1:]))
             # print(np.mean(r_batch[1:]))

@@ -9,14 +9,14 @@ from env import ABREnv
 
 S_DIM = [7, 8]
 A_DIM = (6, 5)
-RANDOM_SEED = 1
+RANDOM_SEED = 17
 BUFFER_SIZE = int(1e6)
 LR = 3e-4
 TOTAL_STEPS = int(1e8)
-START_STEPS = int(1e4)
+START_STEPS = int(1e3)
 UPDATE_FREQUENCY = 4
 TARGET_UPDATE_FREQUENCY = 8000
-TAU = 1.0  # target smoothing coefficient
+TAU = 0.3  # target smoothing coefficient
 BATCH_SIZE = 64
 SAVE_INTERVAL = 500
 SAVE_PATH = "./sac_model/"

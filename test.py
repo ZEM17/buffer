@@ -153,7 +153,8 @@ def main():
 
             last_bit_rate = DEFAULT_QUALITY
             bit_rate = DEFAULT_QUALITY  # use the default action here
-
+            max_buffer_size = 30
+            
             del s_batch[:]
             del a_batch[:]
             del r_batch[:]
