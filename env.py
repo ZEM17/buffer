@@ -45,6 +45,7 @@ class ABREnv():
         # self.net_env.reset_ptr()
         self.time_stamp = 0
         self.last_bit_rate = DEFAULT_QUALITY
+        self.max_buffer_size = 30
         self.state = np.zeros((S_INFO, S_LEN))
         self.buffer_size = 0.
         bit_rate = self.last_bit_rate
