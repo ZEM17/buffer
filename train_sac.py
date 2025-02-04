@@ -9,14 +9,14 @@ from env import ABREnv
 
 S_DIM = [7, 8]
 A_DIM = (6, 5)
-RANDOM_SEED = 17
+RANDOM_SEED = 43
 BUFFER_SIZE = int(1e6)
 LR = 1e-5
-TOTAL_STEPS = int(1e8)
+TOTAL_STEPS = 200000
 START_STEPS = int(1e3)
 UPDATE_FREQUENCY = 4
 TARGET_UPDATE_FREQUENCY = 1000
-TAU = 0.2  # target smoothing coefficient
+TAU = 0.3  # target smoothing coefficient
 BATCH_SIZE = 64
 SAVE_INTERVAL = 500
 SAVE_PATH = "./sac_model/"
@@ -36,6 +36,7 @@ env = ABREnv(RANDOM_SEED)
 
 obs = env.reset()
 episode_reward = 0
+rewards = []
 episode_length = 0
 for step in range(TOTAL_STEPS):
     if step <= START_STEPS:
@@ -51,6 +52,7 @@ for step in range(TOTAL_STEPS):
 
     if done:
         obs = env.reset()
+        rewards.append(episode_reward/episode_length if episode_length else 0)
         episode_reward = 0
         episode_length = 0
 
@@ -65,9 +67,9 @@ for step in range(TOTAL_STEPS):
             target_param.data.copy_(TAU * param.data + (1 - TAU) * target_param.data)
     
     if (step > START_STEPS) and (step % SAVE_INTERVAL == 0):
-        agent.save_model(SAVE_PATH+"nn_model_"+str(step)+".pth")
+        # agent.save_model(SAVE_PATH+"nn_model_"+str(step)+".pth")
         print(f"Step: {step} | "
-              f"Avg Reward: {episode_reward/episode_length if episode_length else 0:.6f}")
+              f"Avg Reward: {np.mean(rewards[-50:])}")
         # os.system('python test_sac.py ' + str(step))
         # data = {
         #     "Step": [step],

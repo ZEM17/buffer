@@ -8,7 +8,7 @@ device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
 FEATURE_NUM = 256
 ALPHA = 0.5
 GAMMA = 0.99
-TARGET_ENTROPY_SCALE = 1
+TARGET_ENTROPY_SCALE = 0.9
 S_DIM = [7, 8]
 
 
@@ -108,20 +108,20 @@ class SAC():
         # TRY NOT TO MODIFY: eps=1e-4 increases numerical stability
         self.q_optimizer = optim.Adam(list(self.qf1.parameters()) + list(self.qf2.parameters()), lr=lr, eps=1e-4)
         self.actor_optimizer = optim.Adam(list(self.actor.parameters()), lr=lr, eps=1e-4)
-        self.alpha = ALPHA
-        # self.target_entropy = TARGET_ENTROPY_SCALE * torch.log(1 / torch.tensor(action_dim[0] * action_dim[1]).to(device))
-        # self.log_alpha = torch.zeros(1, requires_grad=True, device=device)
-        # self.alpha = self.log_alpha.exp().item()
-        # self.a_optimizer = optim.Adam([self.log_alpha], lr=lr, eps=1e-4)
+        # 自动调整alpha的初始化
+        self.target_entropy = -np.log(np.prod(30)) * TARGET_ENTROPY_SCALE
+        self.log_alpha = torch.tensor(np.log(0.5), requires_grad=True, device=device)  # 初始值ALPHA=0.5
+        self.alpha_optimizer = optim.Adam([self.log_alpha], lr=lr)
 
     def cac_target(self, rewards, next_states, dones):
         with torch.no_grad():
+            alpha = self.log_alpha.exp().detach()
             _, next_state_log_pi, next_state_action_probs = self.actor.get_action(next_states)
             qf1_next_target = self.qf1_target(next_states)
             qf2_next_target = self.qf2_target(next_states)
             # we can use the action probabilities instead of MC sampling to estimate the expectation
             min_qf_next_target = next_state_action_probs * (
-                torch.min(qf1_next_target, qf2_next_target) - self.alpha * next_state_log_pi
+                torch.min(qf1_next_target, qf2_next_target) - alpha * next_state_log_pi
             )
             # adapt Q-target for discrete Q-function
             min_qf_next_target = min_qf_next_target.sum(dim=1)
@@ -158,17 +158,20 @@ class SAC():
             qf2_values = self.qf2(states)
             min_qf_values = torch.min(qf1_values, qf2_values)
         # no need for reparameterization, the expectation can be calculated for discrete actions
-        actor_loss = (action_probs * ((self.alpha * log_pi) - min_qf_values)).mean()
+        alpha = self.log_alpha.exp().detach()
+        actor_loss = (action_probs * ((alpha * log_pi) - min_qf_values)).mean()
 
         self.actor_optimizer.zero_grad()
         actor_loss.backward()
         self.actor_optimizer.step()
 
-        # alpha_loss = (action_probs.detach() * (-self.log_alpha.exp() * (log_pi + self.target_entropy).detach())).mean()
-        # self.a_optimizer.zero_grad()
-        # alpha_loss.backward()
-        # self.a_optimizer.step()
-        # self.alpha = self.log_alpha.exp().item()
+        # Alpha训练（新增部分）
+        current_entropy = - (action_probs * log_pi).sum(dim=1).mean()
+        alpha_loss = - (self.log_alpha * (current_entropy.detach() + self.target_entropy)).mean()
+
+        self.alpha_optimizer.zero_grad()
+        alpha_loss.backward()
+        self.alpha_optimizer.step()
 
     def save_model(self, path):
         torch.save({
@@ -179,9 +182,8 @@ class SAC():
             'qf2_target_state_dict': self.qf2_target.state_dict(),
             'q_optimizer_state_dict': self.q_optimizer.state_dict(),
             'actor_optimizer_state_dict': self.actor_optimizer.state_dict(),
-            # 'a_optimizer_state_dict': self.a_optimizer.state_dict(),
-            # 'log_alpha': self.log_alpha
-        }, path)
+            'log_alpha': self.log_alpha}
+            , path)
         # print(f"Model saved to {path}")
 
     def load_model(self, path):
@@ -193,8 +195,5 @@ class SAC():
         self.qf2_target.load_state_dict(checkpoint['qf2_target_state_dict'])
         self.q_optimizer.load_state_dict(checkpoint['q_optimizer_state_dict'])
         self.actor_optimizer.load_state_dict(checkpoint['actor_optimizer_state_dict'])
-        # self.a_optimizer.load_state_dict(checkpoint['a_optimizer_state_dict'])
-        # self.log_alpha = checkpoint['log_alpha'].to(device)
-        # self.log_alpha.requires_grad_(True)  # 确保梯度跟踪
-        # self.alpha = self.log_alpha.exp().item()
+        self.log_alpha = checkpoint['log_alpha']
         # print(f"Model loaded from {path}")
