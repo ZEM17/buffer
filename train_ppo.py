@@ -4,7 +4,7 @@ import os
 import torch
 import random
 from algorithm.ppo2_baseline import Network
-from test_sac import test
+from test_ppo import test
 from replay_buffer import ReplayBuffer
 from env import ABREnv
 
@@ -12,7 +12,7 @@ S_DIM = [7, 8]
 A_DIM = 6
 RANDOM_SEED = 1
 LR = 1e-4
-SAVE_INTERVAL = 1000
+SAVE_INTERVAL = 500
 SAVE_PATH = "./ppo_model/"
 TRAIN_SEQ_LEN = 128 #batch size
 TRAIN_EPOCH = 50000
@@ -73,5 +73,9 @@ for epoch in range(TRAIN_EPOCH):
     agent.train(s_batch, a1_batch, a2_batch, p1_batch, p2_batch, v_batch, adv_batch, epoch)
 
     rewards.append(np.mean(r_batch))
-    if epoch % 100 == 0:  
-        print("epoch:",epoch,"avg_reward:",np.mean(rewards[-10:]))
+    # if epoch % 100 == 0:  
+    #     print("epoch:",epoch,"avg_reward:",np.mean(rewards[-10:]))
+    if epoch % SAVE_INTERVAL == 0:
+         agent.save_model(SAVE_PATH+"nn_model_"+str(epoch)+".pth")
+         reward = test(epoch)
+         print("epoch:",epoch,"avg_reward:",reward)
