@@ -3,7 +3,7 @@ import os
 # os.environ['CUDA_VISIBLE_DEVICES']='-1'
 import numpy as np
 import load_trace
-from algorithm.sac import SAC
+from algorithm.sac2 import SAC
 import fixed_env as env
 
 S_INFO = 7  # bit_rate, buffer_size, next_chunk_size, bandwidth_measurement(throughput and time), chunk_til_video_end
@@ -23,8 +23,7 @@ RAND_RANGE = 1000
 BUFFER_WEIGH = 0.1
 LOG_FILE = './test_results/log_sim_sac'
 TEST_PATH = './test_results/'
-# NN_MODEL = sys.argv[1]
-NN_MODEL = 140000
+
 TEST_TRACES = './test/'
 SAVE_PATH = "./sac_model/"
 
@@ -38,7 +37,7 @@ def hibrid_action(action):
     action2 = action // 6      # 计算 action2：整除运算
     return action1, action2
 
-def main():
+def test(NN_MODEL):
 
     np.random.seed(RANDOM_SEED)
 
@@ -51,8 +50,8 @@ def main():
     log_file = open(log_path, 'w')
 
     agent = SAC(A_DIM, LR)
-    if NN_MODEL is not None:  # NN_MODEL is the path to file
-        agent.load_model(SAVE_PATH+"nn_model_"+str(NN_MODEL)+".pth")
+    if NN_MODEL is not None: 
+        agent.load(SAVE_PATH+"nn_model_"+str(NN_MODEL)+".pth")
 
     time_stamp = 0
 
@@ -120,10 +119,8 @@ def main():
         state[5, -1] = max_buffer_size
         state[6, -1] = buffer_weight
 
-        action, _, _ = agent.actor.get_action(state)
-        action = action[0]
+        action = agent.actor.get_action(state)
         bit_rate, max_buffer_opt = hibrid_action(action)
-        bit_rate = int(bit_rate.cpu())
         # noise = np.random.gumbel(size=len(action1_prob))
         # bit_rate = np.argmax(np.log(action1_prob) + noise)
         # max_buffer_opt = np.random.choice(len(action2_prob), size=1, p=action2_prob)[0]
@@ -172,7 +169,5 @@ def main():
             log_path = LOG_FILE + '_' + all_file_names[net_env.trace_idx]
             log_file = open(log_path, 'w')
 
-    print("step:", NN_MODEL, "avg_reward:",np.mean(reward_per_trace))
-
-if __name__ == '__main__':
-    main()
+    # print("step:", NN_MODEL, "avg_reward:",np.mean(reward_per_trace))
+    return np.mean(reward_per_trace)
