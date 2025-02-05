@@ -54,7 +54,8 @@ for step in range(TOTAL_STEPS):
 
     if done:
         obs = env.reset()
-        rewards.append(episode_reward)
+        rewards.append(episode_reward/episode_length)
+        # print(episode_reward/episode_length)  #回合平均奖励
         # rewards.append(episode_reward/episode_length if episode_length else 0)
         episode_reward = 0
         episode_length = 0
@@ -64,12 +65,14 @@ for step in range(TOTAL_STEPS):
             batch = buffer.sample(BATCH_SIZE)
             agent.train(batch)
     
-    if (step > 10000) and (step % SAVE_INTERVAL == 0):
-        agent.save(SAVE_PATH+"nn_model_"+str(step)+".pth")
-        test_reward = test(step)
+    # if (step > 10000) and (step % SAVE_INTERVAL == 0):
+    #     agent.save(SAVE_PATH+"nn_model_"+str(step)+".pth")
+    #     test_reward = test(step)
+    #     print(f"Step: {step} | "
+    #           f"qoe: {test_reward}")
+    if (step > START_STEPS) and (step % 100 == 0):
         print(f"Step: {step} | "
-              f"qoe: {test_reward}")
-
+              f"qoe: {np.mean(rewards[-10:])}")
         # data = {
         #     "Step": [step],
         #     "Avg Reward": [episode_reward/episode_length if episode_length else 0]
