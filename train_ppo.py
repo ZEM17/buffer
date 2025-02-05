@@ -11,9 +11,9 @@ from env import ABREnv
 S_DIM = [7, 8]
 A_DIM = 6
 RANDOM_SEED = 1
-LR = 1e-5
+LR = 1e-4
 SAVE_INTERVAL = 1000
-SAVE_PATH = "./sac_model/"
+SAVE_PATH = "./ppo_model/"
 TRAIN_SEQ_LEN = 128 #batch size
 TRAIN_EPOCH = 50000
 
