@@ -3,9 +3,9 @@ import pandas as pd
 import os
 import torch
 import random
-from algorithm.ppo2_baseline import Network
-from test_ppo import test
-from env import ABREnv
+from algorithm.ppo2_hybrid import Network
+from test_ppo_hybrid import test
+from env_continuous import ABREnv
 
 S_DIM = [7, 8]
 A_DIM = 6
@@ -32,31 +32,30 @@ env = ABREnv(RANDOM_SEED)
 rewards = []
 for epoch in range(TRAIN_EPOCH):
     obs = env.reset()
-    s_batch, a1_batch, a2_batch, p1_batch, p2_batch, r_batch = [], [], [], [], [], []
+    s_batch, a1_batch, a2_batch, p1_batch, p2_log_batch, r_batch = [], [], [], [], [], []
     for step in range(TRAIN_SEQ_LEN):
         s_batch.append(obs)
 
-        action1_prob, action2_prob = agent.predict(
+        # action1_prob, action2_prob = agent.predict(
+        #     np.reshape(obs, (1, S_DIM[0], S_DIM[1])))
+        action1_prob, action2, action2_log = agent.predict(
             np.reshape(obs, (1, S_DIM[0], S_DIM[1])))
-
         # gumbel noise
         noise = np.random.gumbel(size=len(action1_prob))
         bit_rate = np.argmax(np.log(action1_prob) + noise)
-        max_buffer_opt = np.random.choice(len(action2_prob), size=1, p=action2_prob)[0]
+
+        max_buffer_opt = action2[0]
 
         obs, rew, done, info = env.step(bit_rate, max_buffer_opt)
 
         action_vec = np.zeros(A_DIM)
         action_vec[bit_rate] = 1
         a1_batch.append(action_vec)
-
-        action_vec = np.zeros(5)
-        action_vec[max_buffer_opt] = 1
-        a2_batch.append(action_vec)
+        a2_batch.append(max_buffer_opt)
 
         r_batch.append(rew)
         p1_batch.append(action1_prob)
-        p2_batch.append(action2_prob)
+        p2_log_batch.append(action2_log)
         if done:
             break
     v_batch = agent.compute_v(s_batch, r_batch, done)
@@ -66,10 +65,10 @@ for epoch in range(TRAIN_EPOCH):
     a1_batch = np.vstack(a1_batch)
     a2_batch = np.vstack(a2_batch)
     p1_batch = np.vstack(p1_batch)
-    p2_batch = np.vstack(p2_batch)
+    p2_log_batch = np.vstack(p2_log_batch)
     v_batch = np.vstack(v_batch)
     adv_batch = np.vstack(gae_batch)
-    loss_value = agent.train(s_batch, a1_batch, a2_batch, p1_batch, p2_batch, v_batch, adv_batch, epoch)
+    loss_value = agent.train(s_batch, a1_batch, a2_batch, p1_batch, p2_log_batch, v_batch, adv_batch, epoch)
 
     rewards.append(np.mean(r_batch))
     # if epoch % 100 == 0:  

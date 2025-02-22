@@ -18,7 +18,7 @@ class Actor(nn.Module):
         # Actor network
         self.s_dim = state_dim
         self.a1_dim = action_dim
-        self.a2_dim = 5
+        self.a2_dim = 1
 
         self.fc1_actor = nn.Linear(1, FEATURE_NUM)
         self.fc2_actor = nn.Linear(1, FEATURE_NUM)
@@ -29,11 +29,12 @@ class Actor(nn.Module):
         self.fc7_actor = nn.Linear(1, FEATURE_NUM)
         self.bitrate_action = nn.Linear(3328, FEATURE_NUM)
         self.max_buffer_action = nn.Linear(3328, FEATURE_NUM)
-        self.auxiliary_action = nn.Linear(3328, FEATURE_NUM)
+        # self.auxiliary_action = nn.Linear(3328, FEATURE_NUM)
 
         self.bitrate_pi_head = nn.Linear(FEATURE_NUM, self.a1_dim)
-        self.max_buffer_pi_head = nn.Linear(FEATURE_NUM, self.a2_dim)
-        self.auxiliary_pi_head = nn.Linear(FEATURE_NUM, 1)
+        self.max_buffer_mu_head = nn.Linear(FEATURE_NUM, self.a2_dim)
+        self.max_buffer_logstd_head = nn.Parameter(torch.zeros(self.a2_dim))
+        # self.auxiliary_pi_head = nn.Linear(FEATURE_NUM, 1)
 
         # self.optimizer = optim.Adam(list(self.parameters()), lr=learning_rate)
 
@@ -53,12 +54,13 @@ class Actor(nn.Module):
         a1 = torch.clamp(a1, ACTION_EPS, 1. - ACTION_EPS)
 
         a2 = self.max_buffer_action(merge_net)
-        a2 = F.softmax(self.max_buffer_pi_head(a2), dim=-1)
-        a2 = torch.clamp(a2, ACTION_EPS, 1. - ACTION_EPS)
+        a2_mu = torch.tanh(self.max_buffer_mu_head(a2)) * 10
+        a2_std = torch.exp(self.max_buffer_logstd_head)
 
-        a3 = self.auxiliary_action(merge_net)
-        a3 = self.auxiliary_pi_head(a3)
-        return a1, a2, a3
+        # a3 = self.auxiliary_action(merge_net)
+        # a3 = self.auxiliary_pi_head(a3)
+        a3 = None
+        return a1, a2_mu, a2_std, a3
 
 
 class Critic(nn.Module):
@@ -123,22 +125,23 @@ class Network():
         return torch.sum(pi_new * acts, dim=1, keepdim=True) / \
                torch.sum(pi_old * acts, dim=1, keepdim=True)
 
-    def train(self, s_batch, a1_batch, a2_batch, p1_batch, p2_batch, v_batch, adv_batch, epoch):
+    def train(self, s_batch, a1_batch, a2_batch, p1_batch, p2_log_batch, v_batch, adv_batch, epoch):
         s_batch = torch.from_numpy(s_batch).to(torch.float32).to(device)
         a1_batch = torch.from_numpy(a1_batch).to(torch.float32).to(device)
         a2_batch = torch.from_numpy(a2_batch).to(torch.float32).to(device)
         p1_batch = torch.from_numpy(p1_batch).to(torch.float32).to(device)
-        p2_batch = torch.from_numpy(p2_batch).to(torch.float32).to(device)
+        p2_log_batch = torch.from_numpy(p2_log_batch).to(torch.float32).to(device)
         v_batch = torch.from_numpy(v_batch).to(torch.float32).to(device)
         adv_batch = torch.from_numpy(adv_batch).to(torch.float32).to(device)
         
         loss_value = 0
         # policy phase
         for _ in range(self.PPO_TRAINING_EPO):
-            pi1, pi2, _ = self.actor.forward(s_batch)
+            a1, a2_mu, a2_std, a3 = self.actor.forward(s_batch)
             val = self.critic.forward(s_batch)
 
             # loss1
+            pi1 = a1
             adv = adv_batch
             ratio1 = self.r(pi1, p1_batch, a1_batch)
             ppo2loss1 = torch.min(ratio1 * adv, torch.clamp(ratio1, 1 - EPS, 1 + EPS) * adv)
@@ -148,12 +151,19 @@ class Network():
             loss1 = -dual_loss1.mean() - self._entropy_weight * loss1_entropy.mean()
 
             # loss2
-            ratio2 = self.r(pi2, p2_batch, a2_batch)
+            # ratio2 = self.r(pi2, p2_batch, a2_batch)
+            # ppo2loss2 = torch.min(ratio2 * adv, torch.clamp(ratio2, 1 - EPS, 1 + EPS) * adv)
+            # # Dual-PPO
+            # dual_loss2 = torch.where(adv < 0, torch.max(ppo2loss2, 3. * adv), ppo2loss2)
+            # loss2_entropy = torch.sum(-pi2 * torch.log(pi2), dim=1, keepdim=True)
+            # loss2 = -dual_loss2.mean() - self._entropy_weight * loss2_entropy.mean()
+            a2_dist = torch.distributions.Normal(a2_mu, a2_std)
+            a2_logprobs = a2_dist.log_prob(a2_batch).sum(-1)
+            a2_entropy = a2_dist.entropy().mean()
+            ratio2 = torch.exp(a2_logprobs - p2_log_batch.detach())
             ppo2loss2 = torch.min(ratio2 * adv, torch.clamp(ratio2, 1 - EPS, 1 + EPS) * adv)
-            # Dual-PPO
             dual_loss2 = torch.where(adv < 0, torch.max(ppo2loss2, 3. * adv), ppo2loss2)
-            loss2_entropy = torch.sum(-pi2 * torch.log(pi2), dim=1, keepdim=True)
-            loss2 = -dual_loss2.mean() - self._entropy_weight * loss2_entropy.mean()
+            loss2 = -dual_loss2.mean() - self._entropy_weight * a2_entropy
 
             # vloss
             loss3 = F.mse_loss(val, v_batch)
@@ -165,28 +175,24 @@ class Network():
 
             loss_value = loss.item()
 
-
-
-
-
         # auxiliary phase
-        s = s_batch
-        v_target = self.critic.forward(s)
-        pi1_old, pi2_old, _ = self.actor.forward(s)
+        # s = s_batch
+        # v_target = self.critic.forward(s)
+        # pi1_old, pi2_old, _ = self.actor.forward(s)
 
-        pi1_old, pi2_old = pi1_old.detach(), pi2_old.detach()
-        v_target = v_target.detach()
+        # pi1_old, pi2_old = pi1_old.detach(), pi2_old.detach()
+        # v_target = v_target.detach()
 
-        for _ in range(self.AUX_TRAINING_EPO):
-            pi1, pi2, v3 = self.actor.forward(s)
-            loss_aux = F.mse_loss(v_target, v3)
+        # for _ in range(self.AUX_TRAINING_EPO):
+        #     pi1, pi2, v3 = self.actor.forward(s)
+        #     loss_aux = F.mse_loss(v_target, v3)
 
-            kl1 = torch.sum(pi1_old * torch.log(pi1_old / pi1))
-            kl2 = torch.sum(pi2_old * torch.log(pi2_old / pi2))
-            loss_joint = loss_aux + kl1 + kl2
-            self.optimizer.zero_grad()
-            loss_joint.backward()
-            self.optimizer.step()
+        #     kl1 = torch.sum(pi1_old * torch.log(pi1_old / pi1))
+        #     kl2 = torch.sum(pi2_old * torch.log(pi2_old / pi2))
+        #     loss_joint = loss_aux + kl1 + kl2
+        #     self.optimizer.zero_grad()
+        #     loss_joint.backward()
+        #     self.optimizer.step()
         
 
 
@@ -202,9 +208,12 @@ class Network():
     def predict(self, input):
         with torch.no_grad():
             input = torch.from_numpy(input).to(torch.float32).to(device)
-            pi1 = self.actor.forward(input)[0][0]
-            pi2 = self.actor.forward(input)[1][0]
-            return pi1.cpu().numpy(), pi2.cpu().numpy()
+            a1, a2_mu, a2_std, a3 = self.actor.forward(input)
+            dist = torch.distributions.Normal(a2_mu, a2_std)
+            a2 = dist.sample()
+            a2_log = dist.log_prob(a2).sum(-1)
+
+            return a1[0].cpu().numpy(), a2[0].cpu().numpy(), a2_log[0].cpu().numpy()
 
     def load_model(self, nn_model):
         actor_model_params, critic_model_params = torch.load(nn_model, weights_only=True, map_location=torch.device('cpu'))
