@@ -64,6 +64,7 @@ def test(NN_MODEL):
     s_batch = [np.zeros((S_INFO, S_LEN))]
     r_batch = []
     r2_batch = []
+    buffer_batch = []
     video_count = 0
 
     buffer_weight = BUFFER_WEIGH
@@ -71,7 +72,7 @@ def test(NN_MODEL):
     
     reward_per_trace = []
     reward2_per_trace = []
-
+    buffer_per_trace = []
     while True:  # serve video forever
         # the action is from the last decision
         # this is to make the framework similar to the real
@@ -91,7 +92,7 @@ def test(NN_MODEL):
 
         r_batch.append(reward)
         r2_batch.append(reward2)
-
+        buffer_batch.append(buffer_size)
         last_bit_rate = bit_rate
 
         log_file.write(str(time_stamp / M_IN_K) + '\t' +
@@ -164,6 +165,7 @@ def test(NN_MODEL):
 
             reward_per_trace.append(np.mean(r_batch[1:]))
             reward2_per_trace.append(np.mean(r2_batch[1:]))
+            buffer_per_trace.append(np.mean(buffer_batch[1:]))
             # print(np.mean(r_batch[1:]))
             del s_batch[:]
             del r_batch[:]
@@ -183,4 +185,4 @@ def test(NN_MODEL):
             log_file = open(log_path, 'w')
 
     # print("step:", NN_MODEL, "avg_reward:",np.mean(reward_per_trace))
-    return np.mean(reward_per_trace), np.mean(reward2_per_trace)
+    return np.mean(reward_per_trace), np.mean(reward2_per_trace), np.mean(buffer_per_trace)
