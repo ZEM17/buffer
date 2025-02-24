@@ -29,14 +29,12 @@ class Actor(nn.Module):
         self.fc7_actor = nn.Linear(1, FEATURE_NUM)
         self.bitrate_action = nn.Linear(1664, FEATURE_NUM)
         self.max_buffer_action = nn.Linear(1664, FEATURE_NUM)
-        # self.auxiliary_action = nn.Linear(3328, FEATURE_NUM)
+        self.auxiliary_action = nn.Linear(1664, FEATURE_NUM)
 
         self.bitrate_pi_head = nn.Linear(FEATURE_NUM, self.a1_dim)
         self.max_buffer_mu_head = nn.Linear(FEATURE_NUM, self.a2_dim)
         self.max_buffer_logstd_head = nn.Parameter(torch.zeros(self.a2_dim))
-        # self.auxiliary_pi_head = nn.Linear(FEATURE_NUM, 1)
-
-        # self.optimizer = optim.Adam(list(self.parameters()), lr=learning_rate)
+        self.auxiliary_pi_head = nn.Linear(FEATURE_NUM, 1)
 
     def forward(self, inputs):
         split_1 = F.relu(self.fc1_actor(inputs[:, 0:1, -1]))
@@ -57,9 +55,8 @@ class Actor(nn.Module):
         a2_mu = torch.tanh(self.max_buffer_mu_head(a2)) * 10
         a2_std = torch.exp(self.max_buffer_logstd_head)
 
-        # a3 = self.auxiliary_action(merge_net)
-        # a3 = self.auxiliary_pi_head(a3)
-        a3 = None
+        a3 = self.auxiliary_action(merge_net)
+        a3 = self.auxiliary_pi_head(a3)
         return a1, a2_mu, a2_std, a3
 
 
@@ -79,8 +76,6 @@ class Critic(nn.Module):
         self.fc7_critic = nn.Linear(1, FEATURE_NUM)
         self.merge_critic = nn.Linear(1664, FEATURE_NUM)
         self.val_head = nn.Linear(FEATURE_NUM, 1)
-
-        # self.optimizer = optim.Adam(list(self.parameters()), lr=learning_rate)
 
     def forward(self, inputs):
         split_1 = F.relu(self.fc1_critic(inputs[:, 0:1, -1]))
@@ -151,12 +146,6 @@ class Network():
             loss1 = -dual_loss1.mean() - self._entropy_weight * loss1_entropy.mean()
 
             # loss2
-            # ratio2 = self.r(pi2, p2_batch, a2_batch)
-            # ppo2loss2 = torch.min(ratio2 * adv, torch.clamp(ratio2, 1 - EPS, 1 + EPS) * adv)
-            # # Dual-PPO
-            # dual_loss2 = torch.where(adv < 0, torch.max(ppo2loss2, 3. * adv), ppo2loss2)
-            # loss2_entropy = torch.sum(-pi2 * torch.log(pi2), dim=1, keepdim=True)
-            # loss2 = -dual_loss2.mean() - self._entropy_weight * loss2_entropy.mean()
             a2_dist = torch.distributions.Normal(a2_mu, a2_std)
             a2_logprobs = a2_dist.log_prob(a2_batch).sum(-1)
             a2_entropy = a2_dist.entropy().mean()
@@ -176,25 +165,31 @@ class Network():
             loss_value = loss.item()
 
         # auxiliary phase
-        # s = s_batch
-        # v_target = self.critic.forward(s)
-        # pi1_old, pi2_old, _ = self.actor.forward(s)
+        s = s_batch 
+        v_target = self.critic.forward(s)
+        a1_prob_old, a2_mu_old, a2_std_old, _ = self.actor.forward(s)
 
-        # pi1_old, pi2_old = pi1_old.detach(), pi2_old.detach()
-        # v_target = v_target.detach()
+        a1_prob_old = a1_prob_old.detach()
+        a2_mu_old = a2_mu_old.detach()
+        a2_std_old = a2_std_old.detach()
+        v_target = v_target.detach()
 
-        # for _ in range(self.AUX_TRAINING_EPO):
-        #     pi1, pi2, v3 = self.actor.forward(s)
-        #     loss_aux = F.mse_loss(v_target, v3)
+        for _ in range(self.AUX_TRAINING_EPO):
+            a1_prob, a2_mu, a2_std, a3 = self.actor.forward(s)
+            loss_aux = F.mse_loss(v_target, a3)
 
-        #     kl1 = torch.sum(pi1_old * torch.log(pi1_old / pi1))
-        #     kl2 = torch.sum(pi2_old * torch.log(pi2_old / pi2))
-        #     loss_joint = loss_aux + kl1 + kl2
-        #     self.optimizer.zero_grad()
-        #     loss_joint.backward()
-        #     self.optimizer.step()
+            kl1 = torch.sum(a1_prob_old * torch.log(a1_prob_old / a1_prob))
+            kl2 = torch.sum(
+                    torch.log(a2_std / a2_std_old)  # 确保std非零（如使用softplus或clamp）
+                    + (a2_std_old**2 + (a2_mu_old - a2_mu)**2) / (2 * a2_std**2)
+                    - 0.5
+                    )
+
+            loss_joint = loss_aux + kl1 + kl2
+            self.optimizer.zero_grad()
+            loss_joint.backward()
+            self.optimizer.step()
         
-
 
 
         # Update entropy weight
