@@ -6,15 +6,21 @@ import random
 from algorithm.ppo2_baseline import Network
 from test_ppo import test
 from env import ABREnv
+import wandb
+import os
+
+os.environ["WANDB_API_KEY"] = "0ceea818e30b944d80ac9b37406a14ba021b7f0f"
+os.environ["WANDB_MODE"] = "online"
 
 S_DIM = [7, 8]
 A_DIM = 6
 RANDOM_SEED = 1
 LR = 1e-4
 SAVE_INTERVAL = 500
-SAVE_PATH = "./ppo_model/"
+SAVE_PATH = "./ppo_baseline_model/"
 TRAIN_SEQ_LEN = 128 #batch size
 TRAIN_EPOCH = 50000
+FEATURE_NUM = 64
 
 if not os.path.exists(SAVE_PATH):
         os.makedirs(SAVE_PATH)
@@ -26,8 +32,21 @@ torch.backends.cudnn.deterministic = True
 
 device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
 
+run = wandb.init(
+    # Set the project where this run will be logged
+    project="ppo_baseline",
+    # Track hyperparameters and run metadata
+    config={
+         "learning rate": LR,
+         "train epoch": TRAIN_EPOCH,
+         "seed": RANDOM_SEED,
+         "batch size": TRAIN_SEQ_LEN,
+         "feature num": FEATURE_NUM
+    },
+)
+
 # agent = SAC(A_DIM, LR)
-agent = Network(S_DIM, 6, LR)
+agent = Network(S_DIM, 6, LR, FEATURE_NUM)
 env = ABREnv(RANDOM_SEED)
 rewards = []
 for epoch in range(TRAIN_EPOCH):
@@ -69,12 +88,20 @@ for epoch in range(TRAIN_EPOCH):
     p2_batch = np.vstack(p2_batch)
     v_batch = np.vstack(v_batch)
     adv_batch = np.vstack(gae_batch)
-    loss_value = agent.train(s_batch, a1_batch, a2_batch, p1_batch, p2_batch, v_batch, adv_batch, epoch)
+    loss_a1_value, loss_a2_value, loss_critic_value, loss_total_value, entropy_weight = agent.train(s_batch, a1_batch, a2_batch, p1_batch, p2_batch, v_batch, adv_batch, epoch)
 
     rewards.append(np.mean(r_batch))
-    # if epoch % 100 == 0:  
-    #     print("epoch:",epoch,"avg_reward:",np.mean(rewards[-10:]))
+
     if epoch % SAVE_INTERVAL == 0:
-         agent.save_model(SAVE_PATH+"nn_model_"+str(epoch)+".pth")
-         reward = test(epoch)
-         print("epoch:",epoch,"avg_reward:",reward,"loss:", loss_value)
+        agent.save_model(SAVE_PATH+"nn_model_"+str(epoch)+".pth")
+        reward = test(epoch)
+        print("epoch:",epoch,"reward:",reward,"loss:", loss_total_value, "entropy_weight:", entropy_weight)
+        log_info = {
+            "reward": reward, 
+            "loss": loss_total_value, 
+            "loss_a1": loss_a1_value,
+            "loss_a2": loss_a2_value,
+            "loss_critic_value": loss_critic_value,
+            "entropy_weight": entropy_weight
+            }
+        wandb.log(log_info)

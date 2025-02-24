@@ -11,7 +11,8 @@ S_LEN = 8  # take how many frames in the past
 S_DIM = [7, 8]
 A_DIM = (6, 5)
 A1_DIM = 6
-LR = 3e-4
+LR = 1e-4
+FEATURE_NUM = 64
 VIDEO_BIT_RATE = [300,750,1200,1850,2850,4300]  # Kbps
 BUFFER_NORM_FACTOR = 10.0
 CHUNK_TIL_VIDEO_END_CAP = 48.0
@@ -26,7 +27,7 @@ LOG_FILE = './test_results/log_sim_ppo'
 TEST_PATH = './test_results/'
 
 TEST_TRACES = './test/'
-SAVE_PATH = "./ppo_model/"
+SAVE_PATH = "./ppo_baseline_model/"
 
 if not os.path.exists(TEST_PATH):
         os.makedirs(TEST_PATH)
@@ -50,7 +51,7 @@ def test(NN_MODEL):
     log_path = LOG_FILE + '_' + all_file_names[net_env.trace_idx]
     log_file = open(log_path, 'w')
 
-    agent = Network(S_DIM, 6, LR)
+    agent = Network(S_DIM, 6, LR, FEATURE_NUM)
     if NN_MODEL is not None: 
         agent.load_model(SAVE_PATH+"nn_model_"+str(NN_MODEL)+".pth")
 
