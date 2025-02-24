@@ -5,7 +5,7 @@ import torch.optim as optim
 import torch.distributions as dist
 import numpy as np
 
-FEATURE_NUM = 128
+FEATURE_NUM = 64
 ACTION_EPS = 1e-4
 GAMMA = 0.99
 EPS = 0.2  # PPO2 epsilon
@@ -27,8 +27,8 @@ class Actor(nn.Module):
         self.conv5_actor = nn.Conv1d(kernel_size=1, in_channels=1, out_channels=FEATURE_NUM)
         self.fc6_actor = nn.Linear(1, FEATURE_NUM)
         self.fc7_actor = nn.Linear(1, FEATURE_NUM)
-        self.bitrate_action = nn.Linear(3328, FEATURE_NUM)
-        self.max_buffer_action = nn.Linear(3328, FEATURE_NUM)
+        self.bitrate_action = nn.Linear(1664, FEATURE_NUM)
+        self.max_buffer_action = nn.Linear(1664, FEATURE_NUM)
         # self.auxiliary_action = nn.Linear(3328, FEATURE_NUM)
 
         self.bitrate_pi_head = nn.Linear(FEATURE_NUM, self.a1_dim)
@@ -45,7 +45,7 @@ class Actor(nn.Module):
         split_4 = F.relu(self.conv4_actor(inputs[:, 3:4, :]).view(inputs.shape[0], -1))
         split_5 = F.relu(self.conv5_actor(inputs[:, 4:5, :self.a1_dim]).view(inputs.shape[0], -1))
         split_6 = F.relu(self.fc6_actor(inputs[:, 5:6, -1]))
-        split_7 = F.relu(self.fc6_actor(inputs[:, 6:7, -1]))
+        split_7 = F.relu(self.fc7_actor(inputs[:, 6:7, -1]))
 
         merge_net = torch.cat([split_1, split_2, split_3, split_4, split_5, split_6, split_7], 1)
 
@@ -77,7 +77,7 @@ class Critic(nn.Module):
         self.conv5_critic = nn.Conv1d(kernel_size=1, in_channels=1, out_channels=FEATURE_NUM)
         self.fc6_critic = nn.Linear(1, FEATURE_NUM)
         self.fc7_critic = nn.Linear(1, FEATURE_NUM)
-        self.merge_critic = nn.Linear(3328, FEATURE_NUM)
+        self.merge_critic = nn.Linear(1664, FEATURE_NUM)
         self.val_head = nn.Linear(FEATURE_NUM, 1)
 
         # self.optimizer = optim.Adam(list(self.parameters()), lr=learning_rate)
@@ -89,7 +89,7 @@ class Critic(nn.Module):
         split_4 = F.relu(self.conv4_critic(inputs[:, 3:4, :]).view(inputs.shape[0], -1))
         split_5 = F.relu(self.conv5_critic(inputs[:, 4:5, :self.a_dim]).view(inputs.shape[0], -1))
         split_6 = F.relu(self.fc6_critic(inputs[:, 5:6, -1]))
-        split_7 = F.relu(self.fc6_critic(inputs[:, 6:7, -1]))
+        split_7 = F.relu(self.fc7_critic(inputs[:, 6:7, -1]))
 
         merge_net = torch.cat([split_1, split_2, split_3, split_4, split_5, split_6, split_7], 1)
 
