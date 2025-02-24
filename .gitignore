@@ -1,6 +1,7 @@
 manual_test_summary/
 test/
 test_results/
+__pycache__/
 *.csv
 *.pth
 *.pyc
