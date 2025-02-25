@@ -63,7 +63,7 @@ def test(NN_MODEL):
 
     s_batch = [np.zeros((S_INFO, S_LEN))]
     r_batch = []
-    r2_batch = []
+    data_size_batch = []
     buffer_batch = []
     video_count = 0
 
@@ -71,7 +71,7 @@ def test(NN_MODEL):
     max_buffer_size = 30
     
     reward_per_trace = []
-    reward2_per_trace = []
+    data_size_per_trace = []
     buffer_per_trace = []
     while True:  # serve video forever
         # the action is from the last decision
@@ -88,9 +88,8 @@ def test(NN_MODEL):
                     - REBUF_PENALTY * rebuf \
                     - SMOOTH_PENALTY * np.abs(VIDEO_BIT_RATE[bit_rate] -
                                             VIDEO_BIT_RATE[last_bit_rate]) / M_IN_K
-        reward2 = reward - buffer_weight * buffer_size / BUFFER_NORM_FACTOR
         r_batch.append(reward)
-        r2_batch.append(reward2)
+        data_size_batch.append(data_size)
         buffer_batch.append(buffer_size)
         last_bit_rate = bit_rate
 
@@ -153,7 +152,7 @@ def test(NN_MODEL):
             max_buffer_size = 30
 
             reward_per_trace.append(np.mean(r_batch[1:]))
-            reward2_per_trace.append(np.mean(r2_batch[1:]))
+            data_size_per_trace.append(np.mean(data_size_batch[1:]))
             buffer_per_trace.append(np.mean(buffer_batch[1:]))
             # print(np.mean(r_batch[1:]))
             del s_batch[:]
@@ -174,4 +173,4 @@ def test(NN_MODEL):
             log_file = open(log_path, 'w')
 
     # print("step:", NN_MODEL, "avg_reward:",np.mean(reward_per_trace))
-    return np.mean(reward_per_trace), np.mean(reward2_per_trace), np.mean(buffer_per_trace)
+    return np.mean(reward_per_trace), np.mean(data_size_per_trace), np.mean(buffer_per_trace)
