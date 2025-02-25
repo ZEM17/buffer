@@ -23,11 +23,11 @@ DEFAULT_QUALITY = 1  # default video quality without agent
 RANDOM_SEED = 42
 RAND_RANGE = 1000
 BUFFER_WEIGH = 0.1
-LOG_FILE = './test_results/log_sim_ppo'
-TEST_PATH = './test_results/'
+LOG_FILE = './test2_results/log_sim_ppo'
+TEST_PATH = './test2_results/'
 
 TEST_TRACES = './test/'
-SAVE_PATH = "./ppo_baseline_model/"
+SAVE_PATH = "./ppo_baseline2_model/"
 
 if not os.path.exists(TEST_PATH):
         os.makedirs(TEST_PATH)
@@ -137,19 +137,15 @@ def test(NN_MODEL):
         # max_buffer_opt = np.random.choice(len(action2_prob), size=1, p=action2_prob)[0]
 
         if max_buffer_opt == 0:
-            if max_buffer_size > 10:
-                max_buffer_size -= 10
+            max_buffer_size = max(max_buffer_size-10,4)
         elif max_buffer_opt == 1:
-            if max_buffer_size > 5:
-                max_buffer_size -= 5
+            max_buffer_size = max(max_buffer_size-5,4)
         elif max_buffer_opt == 2:
-            max_buffer_size += 0
+            max_buffer_size = max_buffer_size
         elif max_buffer_opt == 3:
-            if max_buffer_size < 55:
-                max_buffer_size += 5
+            max_buffer_size = min(max_buffer_size+5,60)
         elif max_buffer_opt == 4:
-            if max_buffer_size < 50:
-                max_buffer_size += 10
+            max_buffer_size = min(max_buffer_size+10,60)
 
         s_batch.append(state)
 

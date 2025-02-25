@@ -36,7 +36,7 @@ class ABREnv():
         self.state = np.zeros((S_INFO, S_LEN))
         self.max_buffer_size = 30
 
-        self.buffer_weight = 0.1
+        self.buffer_weight = 0.7
 
     def seed(self, num):
         np.random.seed(num)
@@ -92,20 +92,31 @@ class ABREnv():
         max_buffer_opt = int(max_buffer_opt)
 
         # buffer action
+        # if max_buffer_opt == 0:
+        #     if self.max_buffer_size > 10:
+        #         self.max_buffer_size -= 10
+        # elif max_buffer_opt == 1:
+        #     if self.max_buffer_size > 5:
+        #         self.max_buffer_size -= 5
+        # elif max_buffer_opt == 2:
+        #     self.max_buffer_size += 0
+        # elif max_buffer_opt == 3:
+        #     if self.max_buffer_size < 55:
+        #         self.max_buffer_size += 5
+        # elif max_buffer_opt == 4:
+        #     if self.max_buffer_size < 50:
+        #         self.max_buffer_size += 10
+
         if max_buffer_opt == 0:
-            if self.max_buffer_size > 10:
-                self.max_buffer_size -= 10
+            self.max_buffer_size = max(self.max_buffer_size-10,4)
         elif max_buffer_opt == 1:
-            if self.max_buffer_size > 5:
-                self.max_buffer_size -= 5
+            self.max_buffer_size = max(self.max_buffer_size-5,4)
         elif max_buffer_opt == 2:
-            self.max_buffer_size += 0
+            self.max_buffer_size = self.max_buffer_size
         elif max_buffer_opt == 3:
-            if self.max_buffer_size < 55:
-                self.max_buffer_size += 5
+            self.max_buffer_size = min(self.max_buffer_size+5,60)
         elif max_buffer_opt == 4:
-            if self.max_buffer_size < 50:
-                self.max_buffer_size += 10
+            self.max_buffer_size = min(self.max_buffer_size+10,60)   
         
         # action 3
         # 记得改 A2_DIM和 网络的a2_dim
@@ -135,7 +146,7 @@ class ABREnv():
             - REBUF_PENALTY * rebuf \
             - SMOOTH_PENALTY * np.abs(VIDEO_BIT_RATE[bit_rate] -
                                       VIDEO_BIT_RATE[self.last_bit_rate]) / M_IN_K \
-            - self.buffer_weight * self.buffer_size / BUFFER_NORM_FACTOR
+            - self.buffer_weight * self.buffer_size*BIT_RATE_PENALTY[bit_rate] / BUFFER_NORM_FACTOR
 
             # - self.buffer_weight * self.buffer_size * (bit_rate+1)
 
