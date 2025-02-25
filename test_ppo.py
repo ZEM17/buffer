@@ -23,11 +23,11 @@ DEFAULT_QUALITY = 1  # default video quality without agent
 RANDOM_SEED = 42
 RAND_RANGE = 1000
 BUFFER_WEIGH = 0.1
-LOG_FILE = './test2_results/log_sim_ppo'
-TEST_PATH = './test2_results/'
+LOG_FILE = './test_results/log_sim_ppo'
+TEST_PATH = './test_results/'
 
 TEST_TRACES = './test/'
-SAVE_PATH = "./ppo_baseline2_model/"
+SAVE_PATH = "./ppo_baseline_model/"
 
 if not os.path.exists(TEST_PATH):
         os.makedirs(TEST_PATH)

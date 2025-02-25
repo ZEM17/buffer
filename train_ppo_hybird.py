@@ -87,7 +87,7 @@ for epoch in range(TRAIN_EPOCH):
     p2_log_batch = np.vstack(p2_log_batch)
     v_batch = np.vstack(v_batch)
     adv_batch = np.vstack(gae_batch)
-    loss_a1_value, loss_a2_value, loss_critic_value, loss_total_value, entropy_weight= agent.train(s_batch, a1_batch, a2_batch, p1_batch, p2_log_batch, v_batch, adv_batch, epoch)
+    loss_a1_value, loss_a2_value, loss_critic_value, loss_total_value, entropy_a1_weight, entropy_a2_weight= agent.train(s_batch, a1_batch, a2_batch, p1_batch, p2_log_batch, v_batch, adv_batch, epoch)
 
     rewards.append(np.mean(r_batch))
     
@@ -97,8 +97,8 @@ for epoch in range(TRAIN_EPOCH):
         print("epoch: %d\n" \
               "qoe: %.3f, reward: %.3f\n" \
               "buffer: %.3f, data_size: %.3f\n" \
-              "loss: %.3f, entropy_weight: %.3f\n\n" \
-              % (epoch, qoe, (qoe/data_size), buffer, data_size, loss_total_value, entropy_weight))
+              "loss: %.3f\n\n" \
+              % (epoch, qoe, (qoe/data_size), buffer, data_size, loss_total_value))
         log_info = {
             "qoe": qoe, 
             "reward": qoe/data_size,
@@ -108,6 +108,7 @@ for epoch in range(TRAIN_EPOCH):
             "loss_a1": loss_a1_value,
             "loss_a2": loss_a2_value,
             "loss_critic_value": loss_critic_value,
-            "entropy_weight": entropy_weight
+            "entropy_a1_weight": entropy_a1_weight,
+            "entropy_a2_weight": entropy_a2_weight
             }
         wandb.log(log_info)

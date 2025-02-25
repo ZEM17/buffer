@@ -99,7 +99,8 @@ class Network():
 
         self.s_dim = state_dim
         self.action_dim = action_dim
-        self._entropy_weight = np.log(action_dim)
+        self._entropy_weight_a1 = np.log(action_dim)
+        self._entropy_weight_a2 = np.log(5)
         self.H_target = 0.1
         self.PPO_TRAINING_EPO = 5
         self.AUX_TRAINING_EPO = 6
@@ -147,7 +148,7 @@ class Network():
             # Dual-PPO
             dual_loss1 = torch.where(adv < 0, torch.max(ppo2loss1, 3. * adv), ppo2loss1)
             loss1_entropy = torch.sum(-pi1 * torch.log(pi1), dim=1, keepdim=True)
-            loss1 = -dual_loss1.mean() - self._entropy_weight * loss1_entropy.mean()
+            loss1 = -dual_loss1.mean() - self._entropy_weight_a1 * loss1_entropy.mean()
 
             # loss2
             ratio2 = self.r(pi2, p2_batch, a2_batch)
@@ -155,7 +156,7 @@ class Network():
             # Dual-PPO
             dual_loss2 = torch.where(adv < 0, torch.max(ppo2loss2, 3. * adv), ppo2loss2)
             loss2_entropy = torch.sum(-pi2 * torch.log(pi2), dim=1, keepdim=True)
-            loss2 = -dual_loss2.mean() - self._entropy_weight * loss2_entropy.mean()
+            loss2 = -dual_loss2.mean() - self._entropy_weight_a2 * loss2_entropy.mean()
 
             # vloss
             loss3 = F.mse_loss(val, v_batch)
@@ -197,12 +198,17 @@ class Network():
 
 
         # Update entropy weight
-        _H = (-(torch.log(p1_batch) * p1_batch).sum(dim=1)).mean().item()
-        _g = _H - self.H_target
-        self._entropy_weight -= self.lr_rate * _g * 0.1 * self.PPO_TRAINING_EPO
-        self._entropy_weight = max(self._entropy_weight, 1e-2)
+        _H_a1 = (-(torch.log(p1_batch) * p1_batch).sum(dim=1)).mean().item()
+        _g_a1 = _H_a1 - self.H_target
+        self._entropy_weight_a1 -= self.lr_rate * _g_a1 * 0.1 * self.PPO_TRAINING_EPO
+        self._entropy_weight_a1 = max(self._entropy_weight_a1, 1e-2)
+
+        _H_a2 = (-(torch.log(p2_batch) * p2_batch).sum(dim=1)).mean().item()
+        _g_a2 = _H_a2 - self.H_target
+        self._entropy_weight_a2 -= self.lr_rate * _g_a2 * 0.1 * self.PPO_TRAINING_EPO
+        self._entropy_weight_a2 = max(self._entropy_weight_a2, 1e-2)
         
-        return loss_a1_value, loss_a2_value, loss_critic_value, loss_total_value, self._entropy_weight
+        return loss_a1_value, loss_a2_value, loss_critic_value, loss_total_value, self._entropy_weight_a1, self._entropy_weight_a2
 
     def predict(self, input):
         with torch.no_grad():

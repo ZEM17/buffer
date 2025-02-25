@@ -36,7 +36,7 @@ class ABREnv():
         self.state = np.zeros((S_INFO, S_LEN))
         self.max_buffer_size = 30
 
-        self.buffer_weight = 0.7
+        self.buffer_weight = 0.1
 
     def seed(self, num):
         np.random.seed(num)
@@ -146,7 +146,8 @@ class ABREnv():
             - REBUF_PENALTY * rebuf \
             - SMOOTH_PENALTY * np.abs(VIDEO_BIT_RATE[bit_rate] -
                                       VIDEO_BIT_RATE[self.last_bit_rate]) / M_IN_K \
-            - self.buffer_weight * self.buffer_size*BIT_RATE_PENALTY[bit_rate] / BUFFER_NORM_FACTOR
+            - self.buffer_weight * self.buffer_size / BUFFER_NORM_FACTOR
+            # - self.buffer_weight * self.buffer_size*BIT_RATE_PENALTY[bit_rate] / BUFFER_NORM_FACTOR
 
             # - self.buffer_weight * self.buffer_size * (bit_rate+1)
 
