@@ -94,11 +94,15 @@ for epoch in range(TRAIN_EPOCH):
 
     if epoch % SAVE_INTERVAL == 0:
         agent.save_model(SAVE_PATH+"nn_model_"+str(epoch)+".pth")
-        qoe, reward, buffer, data_size = test(epoch)
-        print("epoch:",epoch,"qoe:",qoe,"reward:",reward,"buffer:",buffer,"data_size:",data_size,"loss:", loss_total_value, "entropy_weight:", entropy_weight)
+        qoe, buffer, data_size = test(epoch)
+        print("epoch: %d\n" \
+              "qoe: %.3f, reward: %.3f\n" \
+              "buffer: %.3f, data_size: %.3f\n" \
+              "loss: %.3f, entropy_weight: %.3f\n\n" \
+              % (epoch, qoe, (qoe/data_size), buffer, data_size, loss_total_value, entropy_weight))
         log_info = {
             "qoe": qoe, 
-            "reward": reward,
+            "reward": qoe/data_size,
             "buffer": buffer,
             "data_size": data_size,
             "loss": loss_total_value, 
