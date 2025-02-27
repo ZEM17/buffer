@@ -3,9 +3,9 @@ import pandas as pd
 import os
 import torch
 import random
-from algorithm.ppo2_addsomething import Network
-from test_ppo import test
-from env import ABREnv
+from algorithm.ppo2_baseline import Network
+from test_ppo_baseline import test
+from env_baseline import ABREnv
 import wandb
 import os
 
@@ -17,7 +17,7 @@ A_DIM = 6
 RANDOM_SEED = 17
 LR = 1e-4
 SAVE_INTERVAL = 500
-SAVE_PATH = "./ppo_model/"
+SAVE_PATH = "./ppo_baseline_model/"
 TRAIN_SEQ_LEN = 128 #batch size
 TRAIN_EPOCH = 50000
 FEATURE_NUM = 64
@@ -34,7 +34,7 @@ device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
 
 run = wandb.init(
     # Set the project where this run will be logged
-    project="ppo",
+    project="ppo_baseline",
     # Track hyperparameters and run metadata
     config={
          "learning rate": LR,

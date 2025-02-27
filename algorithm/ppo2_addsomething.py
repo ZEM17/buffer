@@ -2,9 +2,9 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 import torch.optim as optim
+import torch.distributions as dist
 import numpy as np
 
-FEATURE_NUM = 128
 ACTION_EPS = 1e-4
 GAMMA = 0.99
 EPS = 0.2  # PPO2 epsilon
@@ -12,27 +12,29 @@ EPS = 0.2  # PPO2 epsilon
 device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
 
 class Actor(nn.Module):
-    def __init__(self, state_dim, action_dim, learning_rate):
+    def __init__(self, state_dim, action_dim, feature_num):
         super(Actor, self).__init__()
         # Actor network
         self.s_dim = state_dim
         self.a1_dim = action_dim
         self.a2_dim = 5
 
-        self.fc1_actor = nn.Linear(1, FEATURE_NUM)
-        self.fc2_actor = nn.Linear(1, FEATURE_NUM)
-        self.conv3_actor = nn.Conv1d(kernel_size=1, in_channels=1, out_channels=FEATURE_NUM)
-        self.conv4_actor = nn.Conv1d(kernel_size=1, in_channels=1, out_channels=FEATURE_NUM)
-        self.conv5_actor = nn.Conv1d(kernel_size=1, in_channels=1, out_channels=FEATURE_NUM)
-        self.fc6_actor = nn.Linear(1, FEATURE_NUM)
-        self.fc7_actor = nn.Linear(1, FEATURE_NUM)
-        self.bitrate_action = nn.Linear(3328, FEATURE_NUM)
-        self.max_buffer_action = nn.Linear(3328, FEATURE_NUM)
+        self.fc1_actor = nn.Linear(1, feature_num)
+        self.fc2_actor = nn.Linear(1, feature_num)
+        self.conv3_actor = nn.Conv1d(kernel_size=1, in_channels=1, out_channels=feature_num)
+        self.conv4_actor = nn.Conv1d(kernel_size=1, in_channels=1, out_channels=feature_num)
+        self.conv5_actor = nn.Conv1d(kernel_size=1, in_channels=1, out_channels=feature_num)
+        self.fc6_actor = nn.Linear(1, feature_num)
+        self.fc7_actor = nn.Linear(1, feature_num)
+        self.bitrate_action = nn.Linear(1664, feature_num)
+        self.max_buffer_action = nn.Linear(1664, feature_num)
+        self.auxiliary_action = nn.Linear(1664, feature_num)
 
-        self.bitrate_pi_head = nn.Linear(FEATURE_NUM, self.a1_dim)
-        self.max_buffer_pi_head = nn.Linear(FEATURE_NUM, self.a2_dim)
+        self.bitrate_pi_head = nn.Linear(feature_num, self.a1_dim)
+        self.max_buffer_pi_head = nn.Linear(feature_num, self.a2_dim)
+        self.auxiliary_pi_head = nn.Linear(feature_num, 1)
 
-        self.optimizer = optim.Adam(list(self.parameters()), lr=learning_rate)
+        # self.optimizer = optim.Adam(list(self.parameters()), lr=learning_rate)
 
     def forward(self, inputs):
         split_1 = F.relu(self.fc1_actor(inputs[:, 0:1, -1]))
@@ -52,30 +54,30 @@ class Actor(nn.Module):
         a2 = self.max_buffer_action(merge_net)
         a2 = F.softmax(self.max_buffer_pi_head(a2), dim=-1)
         a2 = torch.clamp(a2, ACTION_EPS, 1. - ACTION_EPS)
-        # pi_net = F.relu(self.merge_actor(merge_net))
-        # pi = F.softmax(self.pi_head(pi_net), dim=-1)
-        # pi = torch.clamp(pi, ACTION_EPS, 1. - ACTION_EPS)
-        return a1, a2
+
+        a3 = self.auxiliary_action(merge_net)
+        a3 = self.auxiliary_pi_head(a3)
+        return a1, a2, a3
 
 
 class Critic(nn.Module):
-    def __init__(self, state_dim, action_dim, learning_rate):
+    def __init__(self, state_dim, action_dim, feature_num):
         super(Critic, self).__init__()
         # Critic network
         self.s_dim = state_dim
         self.a_dim = action_dim
 
-        self.fc1_critic = nn.Linear(1, FEATURE_NUM)
-        self.fc2_critic = nn.Linear(1, FEATURE_NUM)
-        self.conv3_critic = nn.Conv1d(kernel_size=1, in_channels=1, out_channels=FEATURE_NUM)
-        self.conv4_critic = nn.Conv1d(kernel_size=1, in_channels=1, out_channels=FEATURE_NUM)
-        self.conv5_critic = nn.Conv1d(kernel_size=1, in_channels=1, out_channels=FEATURE_NUM)
-        self.fc6_critic = nn.Linear(1, FEATURE_NUM)
-        self.fc7_critic = nn.Linear(1, FEATURE_NUM)
-        self.merge_critic = nn.Linear(3328, FEATURE_NUM)
-        self.val_head = nn.Linear(FEATURE_NUM, 1)
+        self.fc1_critic = nn.Linear(1, feature_num)
+        self.fc2_critic = nn.Linear(1, feature_num)
+        self.conv3_critic = nn.Conv1d(kernel_size=1, in_channels=1, out_channels=feature_num)
+        self.conv4_critic = nn.Conv1d(kernel_size=1, in_channels=1, out_channels=feature_num)
+        self.conv5_critic = nn.Conv1d(kernel_size=1, in_channels=1, out_channels=feature_num)
+        self.fc6_critic = nn.Linear(1, feature_num)
+        self.fc7_critic = nn.Linear(1, feature_num)
+        self.merge_critic = nn.Linear(1664, feature_num)
+        self.val_head = nn.Linear(feature_num, 1)
 
-        self.optimizer = optim.Adam(list(self.parameters()), lr=learning_rate)
+        # self.optimizer = optim.Adam(list(self.parameters()), lr=learning_rate)
 
     def forward(self, inputs):
         split_1 = F.relu(self.fc1_critic(inputs[:, 0:1, -1]))
@@ -93,19 +95,21 @@ class Critic(nn.Module):
         return value
     
 class Network():
-    def __init__(self, state_dim, action_dim, learning_rate):
+    def __init__(self, state_dim, action_dim, learning_rate, feature_num):
 
         self.s_dim = state_dim
         self.action_dim = action_dim
-        self._entropy_weight = np.log(action_dim)
+        self._entropy_weight_a1 = np.log(action_dim)
+        self._entropy_weight_a2 = np.log(5)
         self.H_target = 0.1
         self.PPO_TRAINING_EPO = 5
+        self.AUX_TRAINING_EPO = 6
 
-        self.actor = Actor(state_dim, action_dim, learning_rate).to(device)
-        self.critic = Critic(state_dim, action_dim, learning_rate).to(device)
+        self.actor = Actor(state_dim, action_dim, feature_num).to(device)
+        self.critic = Critic(state_dim, action_dim, feature_num).to(device)
         self.lr_rate = learning_rate
-        # self.optimizer = optim.Adam(list(self.actor.parameters()) + \
-        #                             list(self.critic.parameters()), lr=learning_rate)
+        self.optimizer = optim.Adam(list(self.actor.parameters()) + \
+                                    list(self.critic.parameters()), lr=learning_rate)
 
     def get_network_params(self):
         return [self.actor.state_dict(), self.critic.state_dict()]
@@ -127,9 +131,14 @@ class Network():
         p2_batch = torch.from_numpy(p2_batch).to(torch.float32).to(device)
         v_batch = torch.from_numpy(v_batch).to(torch.float32).to(device)
         adv_batch = torch.from_numpy(adv_batch).to(torch.float32).to(device)
-
+        
+        loss_a1_value = 0
+        loss_a2_value = 0
+        loss_critic_value = 0
+        loss_total_value = 0
+        # policy phase
         for _ in range(self.PPO_TRAINING_EPO):
-            pi1, pi2 = self.actor.forward(s_batch)
+            pi1, pi2, _ = self.actor.forward(s_batch)
             val = self.critic.forward(s_batch)
 
             # loss1
@@ -137,37 +146,69 @@ class Network():
             ratio1 = self.r(pi1, p1_batch, a1_batch)
             ppo2loss1 = torch.min(ratio1 * adv, torch.clamp(ratio1, 1 - EPS, 1 + EPS) * adv)
             # Dual-PPO
-            # dual_loss1 = torch.where(adv < 0, torch.max(ppo2loss1, 3. * adv), ppo2loss1)
+            dual_loss1 = torch.where(adv < 0, torch.max(ppo2loss1, 3. * adv), ppo2loss1)
             loss1_entropy = torch.sum(-pi1 * torch.log(pi1), dim=1, keepdim=True)
-            loss1 = -ppo2loss1.mean() - self._entropy_weight * loss1_entropy.mean()
+            loss1 = -dual_loss1.mean() - self._entropy_weight_a1 * loss1_entropy.mean()
 
             # loss2
             ratio2 = self.r(pi2, p2_batch, a2_batch)
             ppo2loss2 = torch.min(ratio2 * adv, torch.clamp(ratio2, 1 - EPS, 1 + EPS) * adv)
             # Dual-PPO
-            # dual_loss2 = torch.where(adv < 0, torch.max(ppo2loss2, 3. * adv), ppo2loss2)
+            dual_loss2 = torch.where(adv < 0, torch.max(ppo2loss2, 3. * adv), ppo2loss2)
             loss2_entropy = torch.sum(-pi2 * torch.log(pi2), dim=1, keepdim=True)
-            loss2 = -ppo2loss2.mean() - self._entropy_weight * loss2_entropy.mean()
-
-            loss = loss1 + loss2
-            self.actor.optimizer.zero_grad()
-            loss.backward()
-            self.actor.optimizer.step()
-
+            loss2 = -dual_loss2.mean() - self._entropy_weight_a2 * loss2_entropy.mean()
 
             # vloss
             loss3 = F.mse_loss(val, v_batch)
-            self.critic.optimizer.zero_grad()
-            loss3.backward()
-            self.critic.optimizer.step()
+
+            loss = loss1 + loss2 + loss3
+
+            loss_a1_value = loss1.item()
+            loss_a2_value = loss2.item()
+            loss_critic_value = loss3.item()
+            loss_total_value = loss.item()
+            self.optimizer.zero_grad()
+            loss.backward()
+            self.optimizer.step()
+
+
+
+
+
+        # auxiliary phase
+        s = s_batch
+        v_target = self.critic.forward(s)
+        pi1_old, pi2_old, _ = self.actor.forward(s)
+
+        pi1_old, pi2_old = pi1_old.detach(), pi2_old.detach()
+        v_target = v_target.detach()
+
+        for _ in range(self.AUX_TRAINING_EPO):
+            pi1, pi2, v3 = self.actor.forward(s)
+            loss_aux = F.mse_loss(v_target, v3)
+
+            kl1 = torch.sum(pi1_old * torch.log(pi1_old / pi1))
+            kl2 = torch.sum(pi2_old * torch.log(pi2_old / pi2))
+            loss_joint = loss_aux + kl1 + kl2
+            self.optimizer.zero_grad()
+            loss_joint.backward()
+            self.optimizer.step()
+        
 
 
 
         # Update entropy weight
-        _H = (-(torch.log(p1_batch) * p1_batch).sum(dim=1)).mean().item()
-        _g = _H - self.H_target
-        self._entropy_weight -= self.lr_rate * _g * 0.1 * self.PPO_TRAINING_EPO
-        self._entropy_weight = max(self._entropy_weight, 1e-2)
+        _H_a1 = (-(torch.log(p1_batch) * p1_batch).sum(dim=1)).mean().item()
+        _g_a1 = _H_a1 - self.H_target
+        self._entropy_weight_a1 -= self.lr_rate * _g_a1 * 0.1 * self.PPO_TRAINING_EPO
+        self._entropy_weight_a1 = max(self._entropy_weight_a1, 1e-2)
+
+        _H_a2 = (-(torch.log(p2_batch) * p2_batch).sum(dim=1)).mean().item()
+        _g_a2 = _H_a2 - self.H_target
+        self._entropy_weight_a2 -= self.lr_rate * _g_a2 * 0.1 * self.PPO_TRAINING_EPO
+        self._entropy_weight_a2 = max(self._entropy_weight_a2, 1e-2)
+        
+        return loss_a1_value, loss_a2_value, loss_critic_value, loss_total_value, self._entropy_weight_a1, self._entropy_weight_a2
 
     def predict(self, input):
         with torch.no_grad():

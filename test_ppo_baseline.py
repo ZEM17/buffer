@@ -3,7 +3,7 @@ import os
 # os.environ['CUDA_VISIBLE_DEVICES']='-1'
 import numpy as np
 import load_trace
-from algorithm.ppo2_addsomething import Network
+from algorithm.ppo2_baseline import Network
 import fixed_env as env
 
 S_INFO = 7  # bit_rate, buffer_size, next_chunk_size, bandwidth_measurement(throughput and time), chunk_til_video_end
@@ -27,7 +27,7 @@ LOG_FILE = './test_results/log_sim_ppo'
 TEST_PATH = './test_results/'
 
 TEST_TRACES = './test/'
-SAVE_PATH = "./ppo_model/"
+SAVE_PATH = "./ppo_baseline_model/"
 
 if not os.path.exists(TEST_PATH):
         os.makedirs(TEST_PATH)
