@@ -30,8 +30,9 @@ class Actor(nn.Module):
         self.max_buffer_action = nn.Linear(1664, feature_num)
         self.auxiliary_action = nn.Linear(1664, feature_num)
 
-        self.bitrate_pi_head = nn.Linear(feature_num, self.a1_dim)
+        
         self.max_buffer_pi_head = nn.Linear(feature_num, self.a2_dim)
+        self.bitrate_pi_head = nn.Linear(feature_num + self.a2_dim, self.a1_dim)
         self.auxiliary_pi_head = nn.Linear(feature_num, 1)
 
         # self.optimizer = optim.Adam(list(self.parameters()), lr=learning_rate)
@@ -47,13 +48,15 @@ class Actor(nn.Module):
 
         merge_net = torch.cat([split_1, split_2, split_3, split_4, split_5, split_6, split_7], 1)
 
-        a1 = self.bitrate_action(merge_net)
-        a1 = F.softmax(self.bitrate_pi_head(a1), dim=-1)
-        a1 = torch.clamp(a1, ACTION_EPS, 1. - ACTION_EPS)
-
         a2 = self.max_buffer_action(merge_net)
         a2 = F.softmax(self.max_buffer_pi_head(a2), dim=-1)
         a2 = torch.clamp(a2, ACTION_EPS, 1. - ACTION_EPS)
+
+
+        a1 = self.bitrate_action(merge_net)
+        combined = torch.cat([a1, a2], dim=-1)
+        a1 = F.softmax(self.bitrate_pi_head(combined), dim=-1)
+        a1 = torch.clamp(a1, ACTION_EPS, 1. - ACTION_EPS)
 
         a3 = self.auxiliary_action(merge_net)
         a3 = self.auxiliary_pi_head(a3)

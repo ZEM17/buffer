@@ -32,18 +32,18 @@ torch.backends.cudnn.deterministic = True
 
 device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
 
-run = wandb.init(
-    # Set the project where this run will be logged
-    project="ppo",
-    # Track hyperparameters and run metadata
-    config={
-         "learning rate": LR,
-         "train epoch": TRAIN_EPOCH,
-         "seed": RANDOM_SEED,
-         "batch size": TRAIN_SEQ_LEN,
-         "feature num": FEATURE_NUM
-    },
-)
+# run = wandb.init(
+#     # Set the project where this run will be logged
+#     project="ppo",
+#     # Track hyperparameters and run metadata
+#     config={
+#          "learning rate": LR,
+#          "train epoch": TRAIN_EPOCH,
+#          "seed": RANDOM_SEED,
+#          "batch size": TRAIN_SEQ_LEN,
+#          "feature num": FEATURE_NUM
+#     },
+# )
 
 # agent = SAC(A_DIM, LR)
 agent = Network(S_DIM, 6, LR, FEATURE_NUM)
@@ -112,4 +112,4 @@ for epoch in range(TRAIN_EPOCH):
             "entropy_a1_weight": entropy_a1_weight,
             "entropy_a2_weight": entropy_a2_weight
             }
-        wandb.log(log_info)
+        # wandb.log(log_info)
